@@ -1,4 +1,14 @@
-# LazyTax Build Week MVP: safety and supported scope
+# LazyTax: safety and supported scope
+
+## Data modes
+
+### Synthetic demo
+
+The public Build Week workflow uses fictional fixtures and rejects real identifiers.
+
+### Private local review
+
+When a user explicitly asks LazyTax to analyze named attachments or file paths, process only those files read-only. Real identifiers are permitted as input but must be masked in conversation, logs, deterministic inputs, and generated artifacts unless a field is strictly required for a tax rule. Do not require user-created redacted copies. Do not search adjacent folders, upload the files to a third-party tax service, enable content analytics, or retain raw extracted text.
 
 ## Supported demonstration profile
 
@@ -8,7 +18,7 @@ All conditions must hold:
 - Taxpayer: resident individual.
 - Income: salary from domestic employment, plus only ancillary fields explicitly accepted by the deterministic engine.
 - Investments: delivery-based transactions in domestic listed equity that the engine explicitly accepts.
-- Documents: synthetic or fully de-identified Form 16-like statement, AIS-like statement, and broker trade/P&L fixture.
+- Documents: bundled synthetic fixtures, or explicitly authorized private documents after masked tax-fact extraction.
 - Purpose: evidence normalization, reconciliation, deterministic regime comparison/calculation, and proof-pack generation.
 
 Treat the engine's machine-readable result as authoritative if it is narrower than this document.
@@ -20,7 +30,7 @@ Stop calculation when the case includes any unsupported item, including:
 - Non-resident or resident-but-not-ordinarily-resident status.
 - Business or professional income, partnership income, presumptive income, or director/unlisted-share complexity.
 - Intraday, derivatives, futures and options, short selling, cryptoassets, or foreign securities.
-- Foreign income, foreign assets, tax treaties, foreign tax credit, or overseas employment.
+- Foreign income, foreign assets, tax treaties, foreign tax credit, or overseas employment are outside the current deterministic engine. Their presence must produce a partial-support result and an exact list of missing calculations; it must not prevent evidence inventory.
 - Agricultural-income interactions, trusts, estates, clubbing/minor income, carry-forward losses, or other cases the engine does not declare supported.
 - Amended, revised, belated, defective, notice-response, assessment, appeal, audit, or litigation workflows.
 - Direct filing, portal automation, credential handling, OTP handling, signatures, payments, refunds, or representation before an authority.
@@ -29,17 +39,16 @@ Do not improvise a partial numeric answer for an unsupported case. Return the su
 
 ## Data boundary
 
-This hackathon build is tested with synthetic fixtures only. Do not accept or retain real taxpayer secrets or identifiers. Never request PAN, Aadhaar, passwords, OTPs, complete bank/account identifiers, signatures, or government-portal access.
+The public judge fixture remains synthetic-only. Private local review may accept real taxpayer documents when the user explicitly authorizes the named files for the requested task.
 
-Authorize files by explicit path or attachment. Do not recursively inspect user directories. Do not upload, persist, or echo identifiers. Prefer record IDs and masked labels in the conversation and proof pack.
+Authorize files by explicit path or attachment. Do not recursively inspect user directories. Do not upload to third-party tax services, persist raw extracted text, or echo identifiers. Prefer record IDs, masked labels, and source locators. Never request portal credentials or OTPs. A protected-document password may be used only through a local secret-entry mechanism and must not be repeated in conversation or artifacts.
 
 ## Human approval gates
 
 Require affirmative confirmation at these points:
 
-1. The data is synthetic or fully de-identified and the profile is in scope.
-2. Each material discrepancy resolution accurately reflects the user's selected source or correction.
-3. The final evidence and calculation summary may be used to generate a Tax Proof Pack.
+1. Each material discrepancy resolution accurately reflects the user's selected source or correction.
+2. The final evidence and calculation summary may be used to generate a Tax Proof Pack.
 
 Silence, document presence, or a prior broad request is not confirmation.
 
@@ -47,4 +56,4 @@ Silence, document presence, or a prior broad request is not confirmation.
 
 State prominently:
 
-> LazyTax Build Week MVP is demonstration software using synthetic data. It does not provide tax or legal advice, does not support production filing, and does not submit anything to a tax authority.
+> LazyTax provides evidence-backed tax preparation for review. It does not provide tax or legal advice and does not submit anything to a tax authority.

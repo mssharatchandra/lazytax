@@ -9,6 +9,7 @@ const expectedTools = [
   "lazytax_calculate_compare_regimes",
   "lazytax_generate_tax_proof_pack",
   "lazytax_normalize_fixture_data",
+  "lazytax_normalize_private_tax_facts",
   "lazytax_reconcile_evidence"
 ];
 
@@ -51,6 +52,71 @@ async function runHappyPath(pluginRoot, label) {
       expectedTools
     );
 
+    const privateDataset = await callStructured(client, "lazytax_normalize_private_tax_facts", {
+      local_private_processing_consent: true,
+      documents: [
+        {
+          data_mode: "local_private",
+          id: "test-form16-ABCDE1234F",
+          kind: "form16",
+          display_name: "Test Form 16 for Private Person",
+          synthetic: false,
+          tax_year: "FY2025-26",
+          assessment_year: "AY2026-27",
+          taxpayer_ref: "ABCDE1234F",
+          currency: "INR",
+          entries: [
+            { id: "salary", label: "Salary", category: "salary", amount_inr: 2_487_983, locator: "page 3" },
+            { id: "tds", label: "Employer TDS", category: "employer_tds", amount_inr: 316_051, locator: "page 1" }
+          ]
+        },
+        {
+          data_mode: "local_private",
+          id: "test-report-private@example.com",
+          kind: "broker_report",
+          display_name: "Test private consolidated report",
+          synthetic: false,
+          tax_year: "FY2025-26",
+          assessment_year: "AY2026-27",
+          taxpayer_ref: "ABCDE1234F",
+          currency: "INR",
+          entries: [
+            { id: "dividend", label: "Domestic dividend", category: "dividend", amount_inr: 720, locator: "Dividend total" },
+            { id: "foreign-dividend", label: "Foreign dividend", category: "foreign_dividend", amount_inr: 378, locator: "FSI total" },
+            { id: "stcg", label: "Domestic STCG", category: "listed_equity_stcg", amount_inr: 7_798, locator: "STCG total" },
+            { id: "ltcg", label: "Domestic LTCG", category: "listed_equity_ltcg", amount_inr: 0, locator: "LTCG total" },
+            { id: "foreign-tax", label: "Foreign tax withheld", category: "foreign_tax_withheld", amount_inr: 92, locator: "TR total" }
+          ]
+        }
+      ]
+    });
+    assert.equal(privateDataset.data_mode, "local_private");
+    assert.equal(privateDataset.synthetic, false);
+    const serializedPrivateDataset = JSON.stringify(privateDataset);
+    for (const privateValue of ["ABCDE1234F", "Private Person", "private@example.com"]) {
+      assert.equal(serializedPrivateDataset.includes(privateValue), false);
+    }
+
+    const privateReconciliation = await callStructured(client, "lazytax_reconcile_evidence", {
+      dataset: privateDataset
+    });
+    assert.equal(privateReconciliation.ready_for_calculation, true);
+    const privateCalculation = await callStructured(client, "lazytax_calculate_compare_regimes", {
+      profile: {
+        ...supportedProfile,
+        age: 24,
+        has_foreign_income_or_assets: true,
+        has_foreign_capital_gains: false,
+        has_other_foreign_income: false,
+        has_foreign_assets_beyond_dividend_source: false
+      },
+      reconciliation: privateReconciliation
+    });
+    assert.equal(privateCalculation.new_regime.gross_tax_inr, 318_015);
+    assert.equal(privateCalculation.new_regime.foreign_tax_credit_inr, 92);
+    assert.equal(privateCalculation.new_regime.estimated_balance_payable_inr, 1_870);
+    assert.equal(privateCalculation.new_regime.ror_confirmation_required, true);
+
     const dataset = await callStructured(client, "lazytax_normalize_fixture_data", {
       fixture_set: "build_week_demo"
     });
@@ -92,7 +158,7 @@ async function runHappyPath(pluginRoot, label) {
     assert.match(proof.integrity.canonical_payload_hash, /^[a-f0-9]{64}$/);
 
     process.stdout.write(
-      `LazyTax ${label} plugin smoke passed: 4 tools, conflict gate, deterministic comparison and proof pack.\n`
+      `LazyTax ${label} plugin smoke passed: 5 tools, masked private settlement, conflict gate, deterministic comparison and proof pack.\n`
     );
   } finally {
     await client.close();

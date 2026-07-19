@@ -1,12 +1,13 @@
 # LazyTax Codex plugin
 
-LazyTax is a Build Week MVP for evidence-first verification of a narrowly supported **synthetic** Indian tax-return scenario. It packages a verification skill and a local MCP server entry point. It never files a return.
+LazyTax is a Build Week MVP for private, evidence-first Indian tax verification. It packages a verification skill and a local MCP server entry point. It never files a return.
 
 ## Current scope
 
 - AY 2026-27 resident salaried individual.
 - Delivery-based domestic listed-equity transactions accepted by the deterministic engine.
-- Synthetic or fully de-identified demonstration documents only.
+- Two isolated modes: synthetic judge fixtures and explicitly authorized private taxpayer documents.
+- Private mode masks identifiers in deterministic outputs, retains no raw document text, and makes no network calls from the LazyTax MCP process.
 - Evidence inventory, reconciliation, deterministic regime comparison/calculation, and Tax Proof Pack.
 
 The implementation is demonstration software, not tax or legal advice and not a production filing service.
@@ -53,7 +54,7 @@ From the repository root:
 3. Start a new Codex task so the skill and MCP tools are loaded.
 4. Invoke `$verify-tax-return` with the included synthetic fixtures.
 
-Do not use real taxpayer records, credentials, OTPs, or identifying information in this MVP.
+The canonical judge workflow uses only synthetic fixtures. Private mode accepts the exact real taxpayer documents the user asks Codex to review; never provide portal credentials or OTPs. Codex document handling remains governed by the user's Codex data controls.
 
 ## Judge smoke test
 

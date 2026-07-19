@@ -1,36 +1,45 @@
 ---
 name: verify-tax-return
-description: Verify and reconcile a synthetic Indian individual income-tax return using source-linked evidence and LazyTax deterministic MCP tools. Use for AY 2026-27 demo workflows involving a resident salaried taxpayer with delivery-based domestic listed-equity transactions; comparing source documents, investigating discrepancies, calculating or comparing regimes, or producing a Tax Proof Pack. Do not use for real taxpayer data, automatic filing, unsupported profiles, or tax/legal advice.
+description: Verify and reconcile an Indian individual income-tax return using source-linked evidence and LazyTax deterministic MCP tools. Use for a synthetic Build Week demo or an explicitly authorized private tax-document review; comparing source documents, investigating discrepancies, calculating supported amounts, or producing a Tax Proof Pack. Never file automatically or claim legal correctness.
 ---
 
 # Verify Tax Return
 
-Use the LazyTax MCP server to produce a reproducible, evidence-backed verification. Treat this Build Week MVP as demonstration software, not tax advice or a filing service.
+Use the LazyTax MCP server to produce a reproducible, evidence-backed verification. Treat every result as preparation for taxpayer review, not tax advice or a filing service.
+
+## Choose the data mode
+
+- **Synthetic demo**: use the bundled fictional fixtures. The synthetic schema must reject real identifiers.
+- **Private local review**: use only the exact attachments or paths the user explicitly supplied for the requested tax task. Real identifiers may be read when necessary, but must be masked in responses and excluded from deterministic tool inputs unless a field is legally required for the calculation.
+
+An explicit request such as “calculate my tax from these files” authorizes read-only processing of those named files. Do not make the user redact documents or repeat a separate consent phrase. Do not search nearby folders or unrelated files.
 
 ## Non-negotiable boundaries
 
-1. Accept only synthetic or fully de-identified demonstration data. If a user supplies real PAN, Aadhaar, bank, address, contact, or account data, stop and ask them to remove it and use a synthetic copy.
-2. Confirm that the case fits the supported profile before extracting or calculating. Read [safety-and-scope.md](references/safety-and-scope.md) for the complete boundary.
+1. Classify the run as synthetic demo or private local review. PII in synthetic mode is an error; PII in private local mode is protected data, not a reason to refuse the task.
+2. Confirm that the tax facts fit the deterministic engine before calculating. Read [safety-and-scope.md](references/safety-and-scope.md) for the complete boundary. An unsupported income category blocks only claims of a complete liability; it does not block safe evidence extraction or calculation of clearly separable supported components.
 3. Never calculate, round, compare regimes, or validate totals in free-form reasoning. Invoke the deterministic LazyTax tools and report their returned rule version.
 4. Never infer a missing tax fact. Mark it missing, cite the affected calculation, and ask one targeted question.
 5. Never file, submit, log in to a government portal, request credentials or OTPs, sign a return, or claim that filing occurred.
 6. Require explicit user confirmation before resolving a material conflict and again before generating the final Tax Proof Pack.
-7. Keep all claims traceable to a source locator or a deterministic tool result. Label explanations as explanations, not evidence.
+7. Keep all claims traceable to a source locator or a deterministic tool result. Label explanations as explanations, not evidence. Mask PAN, Aadhaar, account numbers, addresses, contact details, names, signatures, credentials, and document passwords in every response and artifact.
 8. Fail closed. If a required LazyTax tool is unavailable, returns an error, or does not support the case, stop the affected workflow and state what remains unverified.
+9. Do not upload documents to a third-party tax service, enable analytics on document contents, or persist raw extracted text. Use temporary local processing where available and retain only masked, tax-relevant evidence.
 
 ## Verification workflow
 
 ### 1. Establish scope and consent
 
-- State: “LazyTax Build Week MVP uses synthetic demo data, supports a narrow AY 2026-27 profile, provides no tax/legal advice, and never files a return.”
-- Ask the user to confirm that the documents are synthetic or fully de-identified.
+- State the selected mode and that LazyTax never files automatically.
+- In private local review, proceed when the user already requested analysis of named files; do not ask for redaction or a redundant confirmation.
 - Establish assessment year, residency, income categories, and transaction types.
 - Compare them with [safety-and-scope.md](references/safety-and-scope.md). Refuse unsupported calculations while still offering a clearly labelled evidence inventory when safe.
-- List the exact files the user authorized. Do not search unrelated folders.
+- List the exact files the user authorized using safe filenames; do not display identifiers found inside them and do not search unrelated folders.
 
 ### 2. Normalize the evidence
 
-- Invoke `lazytax_normalize_fixture_data` once for the explicitly authorized synthetic fixture set.
+- For synthetic demo mode, invoke `lazytax_normalize_fixture_data` for the explicitly authorized fixture set.
+- For private local review, extract only tax-relevant fields from the authorized files, mask identifiers, then invoke the private-local normalization capability if exposed. If no private-local capability is available, provide a source-linked evidence inventory and state that deterministic calculation is unavailable; never relabel real data as synthetic.
 - Require every normalized fact to retain a stable evidence ID and source locator.
 - Preserve contradictory values as separate evidence records. Never silently overwrite one source with another.
 - Present the evidence inventory before beginning reconciliation.
@@ -49,7 +58,7 @@ Use the LazyTax MCP server to produce a reproducible, evidence-backed verificati
 - Pass normalized evidence plus explicit resolutions. Do not pass hidden assumptions.
 - Report assessment year, rule-set version, input lineage, both supported regime results, warnings, unsupported fields, and status.
 - Never reconstruct, adjust, or “sanity-correct” a numeric result in prose. Do not describe the lower result as a recommendation.
-- Do not call a return “verified,” “ready,” or “complete” while a blocking issue, unsupported field, or material unresolved discrepancy remains.
+- Do not call a return “verified,” “ready,” or “complete” while a blocking issue, unsupported field, or material unresolved discrepancy remains. When foreign income/assets or another unsupported category exists, clearly label any supported calculation as partial and never present it as tax payable.
 
 ### 5. Generate the Tax Proof Pack
 
@@ -62,15 +71,15 @@ Use the LazyTax MCP server to produce a reproducible, evidence-backed verificati
 
 Use these headings for every substantive run:
 
-1. **Scope status** — supported, unsupported, or blocked, with reasons.
-2. **Evidence inventory** — authorized synthetic sources and locators.
+1. **Scope status** — supported, partially supported, unsupported, or blocked, with reasons.
+2. **Evidence inventory** — authorized sources and locators with identifiers masked.
 3. **Reconciliation ledger** — matches, conflicts, missing facts, and resolutions.
 4. **Deterministic results** — tool-returned totals, rule version, and lineage.
 5. **Unresolved blockers** — never bury warnings.
 6. **Approval required** — one explicit decision at a time.
 7. **Next safe action** — the smallest non-filing step.
 
-Use “according to the provided synthetic document” for source claims and “the deterministic engine returned” for calculations. Never say “I filed,” “the government accepted,” “this is filing-ready,” or “this is legally correct.”
+Use “according to the provided document” for private source claims, “according to the provided synthetic document” for demo claims, and “the deterministic engine returned” for calculations. Never say “I filed,” “the government accepted,” “this is filing-ready,” or “this is legally correct.”
 
 ## Tool contract
 

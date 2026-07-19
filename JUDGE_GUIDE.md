@@ -2,7 +2,7 @@
 
 LazyTax is a local-first Codex/ChatGPT plugin that verifies one narrowly supported **synthetic** Indian tax scenario. It reconciles source-linked evidence, refuses to choose conflicting numbers without confirmation, compares regimes with deterministic code, and emits a hashed Tax Proof Pack. It does not file a return.
 
-> Synthetic Build Week demonstration only. Do not provide real taxpayer records, identity numbers, credentials, or OTPs. This software is not tax, legal, or financial advice.
+> The canonical judge path is synthetic and needs no taxpayer data. A separate private-review mode accepts explicitly authorized documents, masks identifiers in tool outputs, and never accepts portal credentials or OTPs. This software is not tax, legal, or financial advice.
 
 ## Fast path (about three minutes)
 
@@ -22,7 +22,7 @@ npm run check
 npm run install:plugin
 ```
 
-`npm run check` includes an isolated-copy smoke test of the complete four-tool
+`npm run check` includes an isolated-copy smoke test of the complete five-tool
 workflow, so it verifies the same self-contained package shape Codex places in
 its install cache. `npm run install:plugin` registers this repository as the
 `personal` marketplace when needed and installs or refreshes
@@ -89,7 +89,7 @@ cross-origin generation, and makes no external network calls.
 
 ## MCP tool contract
 
-All four tools are local, read-only, non-destructive, side-effect-free, and closed-world. Calculation results are stable for the same inputs; proof-pack `generated_at` and its dependent integrity hash vary by generation. The tools never access government portals or external services.
+All five tools are local, read-only, non-destructive, side-effect-free, and closed-world. Calculation results are stable for the same inputs; proof-pack `generated_at` and its dependent integrity hash vary by generation. The tools never access government portals or external services.
 
 ### `lazytax_normalize_fixture_data`
 
@@ -111,6 +111,10 @@ Each normalized evidence item preserves:
 - normalized `category` and non-negative `amount_inr`.
 
 Unsupported or derived lines are warning-only and are never silently added to taxable income.
+
+### `lazytax_normalize_private_tax_facts`
+
+Purpose: normalize tax-relevant facts extracted from only the private files the user explicitly asked Codex to review. The tool uses real identifiers only to enforce one-taxpayer scope and deduplication, HMAC-pseudonymizes document, taxpayer, evidence and line IDs, and returns no raw identifiers. It does not open files, persist inputs, call a network service, calculate tax, or accept passwords, OTPs, credentials, Aadhaar, signatures, addresses, or contact details.
 
 ### `lazytax_reconcile_evidence`
 

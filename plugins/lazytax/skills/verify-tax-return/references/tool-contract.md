@@ -8,17 +8,21 @@ Input: the explicitly authorized synthetic fixture set or supported fixture payl
 
 Expected output: normalized taxpayer facts and evidence records with stable evidence IDs and source locators, plus scope warnings. This tool must not calculate tax.
 
+## `lazytax_normalize_private_tax_facts`
+
+Pass only tax-relevant facts extracted from the user-authorized documents. Use one stable opaque per-session taxpayer reference when possible. The engine accepts protected identifiers only when needed to bind sources, then replaces taxpayer, document, evidence, and line identifiers before returning. Never pass Aadhaar, addresses, contact details, credentials, OTPs, signatures, or document passwords. Real data must remain labelled `local_private`; never set `synthetic: true` to bypass a schema boundary.
+
 ## `lazytax_reconcile_evidence`
 
 Input: normalized evidence and optional user-confirmed resolution records.
 
-Expected output: matched, conflicting, missing, and unsupported groups; materiality/consequences when deterministically available; stable reconciliation identifiers.
+Expected output: matched, conflicting, missing, and unsupported groups across supported income and credit categories; materiality/consequences when deterministically available; stable reconciliation identifiers.
 
 ## `lazytax_calculate_compare_regimes`
 
-Input: normalized evidence plus explicit user resolutions.
+Input: a calculation-ready reconciliation plus the supported taxpayer profile.
 
-Expected output: AY 2026-27 rule-set version, calculation trace, both supported regime results, input lineage, warnings, unsupported fields, and status. Repeat numbers exactly as returned.
+Expected output: AY 2026-27 calculation trace, both supported regime results, TDS/conditional FTC settlement in private mode, input lineage, warnings, unsupported fields, and status. Repeat numbers exactly as returned.
 
 ## `lazytax_generate_tax_proof_pack`
 

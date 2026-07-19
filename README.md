@@ -3,15 +3,16 @@
 > Give Codex your tax documents. Get back a return that proves every number.
 
 LazyTax is an installable Codex/ChatGPT plugin for an evidence-backed Indian
-tax-verification workflow. It reconciles synthetic Form 16-like, AIS-like and
-broker records, refuses to guess through conflicts, delegates all calculations
-to a deterministic local engine, and produces a source-indexed Tax Proof Pack.
+tax-verification workflow. It reconciles synthetic fixtures or explicitly
+authorized private tax facts, refuses to guess through conflicts, delegates
+supported calculations to a deterministic local engine, masks private
+identifiers in tool outputs, and produces a source-indexed Tax Proof Pack.
 
 **OpenAI Build Week track:** Apps for Your Life  
-**Status:** Build Week MVP using synthetic data only  
+**Status:** Build Week MVP with synthetic judge mode and private review mode
 **Important:** LazyTax does not file a return and is not tax, legal or financial
-advice. Never use this build with real PAN, Aadhaar, credentials, OTPs or
-taxpayer documents.
+advice. Never provide tax-portal credentials or OTPs. Private files are handled
+only when the user explicitly asks Codex to review those exact files.
 
 ## Why this exists
 
@@ -26,7 +27,7 @@ typed tools as the numeric authority:
 Codex / ChatGPT Work mode (GPT-5.6)
   -> LazyTax verification skill
   -> local MCP tools over stdio
-  -> deterministic AY 2026-27 demo engine
+  -> deterministic AY 2026-27 engine
   -> source-indexed Tax Proof Pack
   -> minimal local evidence viewer
 ```
@@ -36,7 +37,7 @@ tool. It may not invent tax facts or calculate liability in free-form text.
 
 ## Build Week supported profile
 
-The public demo deliberately supports only:
+The deterministic calculation deliberately supports only:
 
 - AY 2026-27 resident individual under 60.
 - One domestic salary source.
@@ -45,16 +46,20 @@ The public demo deliberately supports only:
 - Income below the surcharge threshold and outside the unsupported marginal-
   relief band.
 - No deduction beyond the regime's standard deduction.
-- The three committed synthetic JSON fixtures.
+- The three committed synthetic JSON fixtures, or explicitly authorized private
+  facts normalized with identifiers pseudonymized.
 
 Business/professional income, multiple employers, house property, foreign
 income/assets, crypto, F&O/intraday, loss carry-forward, surcharge cases,
-production documents and filing actions fail closed.
+filing actions fail closed. Private documents do not fail merely because they
+contain PII; unsupported tax categories are surfaced as review flags.
 
 ## What works
 
 - Installable Codex/ChatGPT plugin and `verify-tax-return` skill.
 - Local TypeScript MCP server using stdio and structured tool outputs.
+- Separate synthetic and private normalization tools so real data cannot be
+  accidentally relabelled as demo data.
 - Source normalization with stable evidence IDs and locators.
 - Conflict-preserving reconciliation with explicit user confirmation.
 - Deterministic old/new regime comparison for the supported profile.
@@ -101,11 +106,12 @@ See [JUDGE_GUIDE.md](JUDGE_GUIDE.md) for the complete judge path and
 | Tool | Purpose |
 |---|---|
 | `lazytax_normalize_fixture_data` | Load/validate the bundled demo or supplied synthetic fixture objects and preserve provenance |
+| `lazytax_normalize_private_tax_facts` | Pseudonymize tax facts from explicitly authorized private documents and return masked evidence |
 | `lazytax_reconcile_evidence` | Compare source totals, surface conflicts and apply explicit confirmations |
 | `lazytax_calculate_compare_regimes` | Deterministically calculate the supported old/new-regime estimates |
 | `lazytax_generate_tax_proof_pack` | Generate the structured evidence and calculation artifact |
 
-All four tools are read-only and non-destructive. Normalization, reconciliation
+All five tools are read-only and non-destructive. Normalization, reconciliation
 and calculation are idempotent; proof-pack generation is timestamped and
 therefore marked non-idempotent despite having no side effects. The local stdio
 server logs only failures to stderr.

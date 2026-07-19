@@ -5,11 +5,13 @@ import { fileURLToPath } from "node:url";
 import { z } from "zod";
 import {
   DISCLAIMER,
-  FixtureDocumentInputSchema,
+  FixtureDocumentSchema,
   IncomeCategorySchema,
+  LocalPrivateFixtureDocumentSchema,
   NormalizedDatasetSchema,
   ReconciliationResultSchema,
   RegimeComparisonSchema,
+  SyntheticFixtureDocumentSchema,
   TaxProofPackSchema,
   TaxpayerProfileSchema
 } from "@lazytax/core";
@@ -21,6 +23,11 @@ import {
   reconcileEvidence,
   taxInputsFromReconciliation
 } from "@lazytax/engine";
+
+const SyntheticDocumentInputSchema = z.union([
+  FixtureDocumentSchema,
+  SyntheticFixtureDocumentSchema
+]);
 
 const ResponseFormatSchema = z.enum(["summary", "json"]).default("summary");
 
@@ -41,8 +48,13 @@ const ConfirmationSchema = z
     salary: z.number().int().nonnegative().max(50_000_000).optional(),
     interest: z.number().int().nonnegative().max(50_000_000).optional(),
     dividend: z.number().int().nonnegative().max(50_000_000).optional(),
+    foreign_dividend: z.number().int().nonnegative().max(50_000_000).optional(),
     listed_equity_stcg: z.number().int().nonnegative().max(50_000_000).optional(),
-    listed_equity_ltcg: z.number().int().nonnegative().max(50_000_000).optional()
+    listed_equity_ltcg: z.number().int().nonnegative().max(50_000_000).optional(),
+    employer_tds: z.number().int().nonnegative().max(50_000_000).optional(),
+    foreign_tax_withheld: z.number().int().nonnegative().max(50_000_000).optional(),
+    foreign_capital_gains: z.number().int().nonnegative().max(50_000_000).optional(),
+    other_foreign_income: z.number().int().nonnegative().max(50_000_000).optional()
   })
   .strict();
 
@@ -52,7 +64,7 @@ const BUILD_WEEK_FIXTURE_FILES = [
   "broker-pnl.synthetic.json"
 ] as const;
 
-async function loadBuildWeekFixtures(): Promise<z.infer<typeof FixtureDocumentInputSchema>[]> {
+async function loadBuildWeekFixtures(): Promise<z.infer<typeof SyntheticDocumentInputSchema>[]> {
   const candidates = [
     resolve(process.cwd(), "fixtures"),
     fileURLToPath(new URL("../fixtures/", import.meta.url)),
@@ -64,7 +76,7 @@ async function loadBuildWeekFixtures(): Promise<z.infer<typeof FixtureDocumentIn
       return await Promise.all(
         BUILD_WEEK_FIXTURE_FILES.map(async (filename) => {
           const json = await readFile(resolve(fixturesDirectory, filename), "utf8");
-          return FixtureDocumentInputSchema.parse(JSON.parse(json) as unknown);
+          return SyntheticDocumentInputSchema.parse(JSON.parse(json) as unknown);
         })
       );
     } catch (error) {
@@ -82,11 +94,12 @@ function textResult<T extends Record<string, unknown>>(
   responseFormat: "summary" | "json",
   summary: string
 ): { content: [{ type: "text"; text: string }]; structuredContent: T } {
+  const boundary = typeof output.disclaimer === "string" ? output.disclaimer : DISCLAIMER;
   return {
     content: [
       {
         type: "text",
-        text: responseFormat === "json" ? JSON.stringify(output, null, 2) : `${summary}\n\n${DISCLAIMER}`
+        text: responseFormat === "json" ? JSON.stringify(output, null, 2) : `${summary}\n\n${boundary}`
       }
     ],
     structuredContent: output
@@ -124,7 +137,7 @@ export function createLazyTaxServer(): McpServer {
       inputSchema: z
         .object({
           documents: z
-            .array(FixtureDocumentInputSchema)
+            .array(SyntheticDocumentInputSchema)
             .min(1)
             .max(10)
             .optional()
@@ -161,11 +174,53 @@ export function createLazyTaxServer(): McpServer {
   );
 
   server.registerTool(
+    "lazytax_normalize_private_tax_facts",
+    {
+      title: "Normalize Private Local Tax Facts",
+      description:
+        "Normalize structured tax facts extracted read-only from only the private documents the user explicitly authorized. This local, in-process tool accepts real identifiers solely to bind one taxpayer and deduplicate sources, then HMAC-pseudonymizes every taxpayer, document, evidence, and line identifier before returning data. It does not open files, persist inputs, use the network, log PII, calculate tax, or file a return. Pass only tax-relevant facts and never pass passwords, OTPs, portal credentials, Aadhaar, signatures, addresses, or contact details.",
+      inputSchema: z
+        .object({
+          documents: z
+            .array(LocalPrivateFixtureDocumentSchema)
+            .min(1)
+            .max(10)
+            .describe("One to ten explicitly authorized FY2025-26 private documents represented as structured tax facts."),
+          local_private_processing_consent: z
+            .literal(true)
+            .describe("True only when the user explicitly asked LazyTax to process these named documents for this tax task."),
+          response_format: ResponseFormatSchema
+        })
+        .strict(),
+      outputSchema: NormalizedDatasetSchema,
+      annotations: READ_ONLY_ANNOTATIONS
+    },
+    async ({ documents, local_private_processing_consent, response_format }) => {
+      try {
+        if (local_private_processing_consent !== true) {
+          throw new Error("Explicit authorization for the named private documents is required.");
+        }
+        const output = normalizeFixtureData(documents);
+        return textResult(
+          output,
+          response_format,
+          `Normalized ${documents.length} private document(s) into ${output.evidence.length} masked, source-bound tax evidence item(s). Raw identifiers were not returned.`
+        );
+      } catch (error) {
+        return actionableError(
+          error,
+          "Use only the exact documents the user authorized, keep one FY2025-26 taxpayer per request, and exclude secrets or non-tax personal fields."
+        );
+      }
+    }
+  );
+
+  server.registerTool(
     "lazytax_reconcile_evidence",
     {
       title: "Reconcile Source-Linked Tax Evidence",
       description:
-        "Aggregate evidence per source and compare salary, interest, dividend, domestic listed-equity STCG, and domestic listed-equity LTCG. Conflicting source totals are left unresolved—never guessed—and require an explicit user-confirmed amount. Returns a calculation readiness flag and evidence IDs for every decision.",
+        "Aggregate evidence per source and compare supported income and credit categories, including salary, domestic/foreign dividends, domestic listed-equity gains, employer TDS, and foreign tax withheld. Conflicting source totals are left unresolved—never guessed—and require an explicit user-confirmed amount. Returns a calculation readiness flag and evidence IDs for every decision.",
       inputSchema: z
         .object({
           dataset: NormalizedDatasetSchema,
@@ -194,7 +249,7 @@ export function createLazyTaxServer(): McpServer {
       } catch (error) {
         return actionableError(
           error,
-          "Run lazytax_normalize_fixture_data first, then confirm only values you verified against the returned evidence IDs."
+          "Run the synthetic or private normalization tool first, then confirm only values you verified against the returned evidence IDs."
         );
       }
     }
@@ -205,7 +260,7 @@ export function createLazyTaxServer(): McpServer {
     {
       title: "Calculate and Compare Supported Tax Regimes",
       description:
-        "Deterministically estimate old- and new-regime tax for the narrow AY 2026-27 demo profile: resident individual under 60 with salary, interest, dividends, and domestic STT-paid listed-equity gains only. It uses standard deductions, verified slabs, section 111A/112A rates, section 87A rules, and 4% cess. It rejects unresolved evidence, surcharge cases above ₹50 lakh, the unsupported marginal-relief band, and every unsupported profile. It does not account for tax credits or file a return.",
+        "Deterministically estimate old- and new-regime tax and, in private mode, supported TDS/FTC settlement for the narrow AY 2026-27 profile: resident individual under 60 with salary, interest, domestic/foreign dividends, and domestic STT-paid listed-equity gains. It uses standard deductions, verified slabs, section 111A/112A rates, section 87A rules, 4% cess, and a conservative foreign-tax-credit cap. It rejects unresolved evidence, unsupported foreign gains/income, surcharge cases above ₹50 lakh, the unsupported marginal-relief band, and every unsupported profile. It never files a return.",
       inputSchema: z
         .object({
           profile: TaxpayerProfileSchema,
@@ -219,11 +274,11 @@ export function createLazyTaxServer(): McpServer {
     async ({ profile, reconciliation, response_format }) => {
       try {
         const inputs = taxInputsFromReconciliation(reconciliation);
-        const output = compareTaxRegimes(profile, inputs);
+        const output = compareTaxRegimes(profile, inputs, reconciliation.data_mode);
         return textResult(
           output,
           response_format,
-          `Estimated ${output.lower_estimated_regime}-regime tax is lower by ₹${output.estimated_difference_inr.toLocaleString("en-IN")} for this supported synthetic scenario. This is a mechanical comparison, not a filing recommendation.`
+          `Estimated ${output.lower_estimated_regime}-regime tax is lower by ₹${output.estimated_difference_inr.toLocaleString("en-IN")} for this supported ${reconciliation.data_mode === "local_private" ? "private" : "synthetic"} scenario. This is a mechanical comparison, not a filing recommendation.`
         );
       } catch (error) {
         return actionableError(
@@ -239,7 +294,7 @@ export function createLazyTaxServer(): McpServer {
     {
       title: "Generate Structured Tax Proof Pack",
       description:
-        "Generate an evidence-indexed, SHA-256-integrity-stamped JSON proof artifact from an already normalized, reconciled, and calculated synthetic case. The artifact records sources, decisions, assumptions, official-rule URLs, and limitations. It is not an ITR JSON, is not valid for filing, and is blocked while conflicts remain unresolved.",
+        "Generate an evidence-indexed, SHA-256-integrity-stamped JSON proof artifact from an already normalized, reconciled, and calculated synthetic or private case. The artifact records masked sources, decisions, assumptions, official-rule URLs, and limitations. It is not an ITR JSON, is not valid for filing, and is blocked while conflicts remain unresolved.",
       inputSchema: z
         .object({
           profile: TaxpayerProfileSchema,
@@ -264,7 +319,7 @@ export function createLazyTaxServer(): McpServer {
         return textResult(
           output,
           response_format,
-          `Generated synthetic Tax Proof Pack ${output.integrity.canonical_payload_hash.slice(0, 12)}… with ${output.evidence_index.length} indexed evidence item(s). It is not a filing artifact.`
+          `Generated ${output.data_mode === "local_private" ? "private" : "synthetic"} Tax Proof Pack ${output.integrity.canonical_payload_hash.slice(0, 12)}… with ${output.evidence_index.length} indexed evidence item(s). It is not a filing artifact.`
         );
       } catch (error) {
         return actionableError(

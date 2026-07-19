@@ -21117,14 +21117,21 @@ import { fileURLToPath } from "node:url";
 // packages/core/dist/index.js
 var ASSESSMENT_YEAR = "2026-27";
 var DISCLAIMER = "Synthetic Build Week demonstration only. LazyTax does not file a return and is not tax, legal, or financial advice. Verify all figures against official records and a qualified professional before acting.";
+var PRIVATE_REVIEW_DISCLAIMER = "Private local review only. LazyTax does not file a return and is not tax, legal, or financial advice. Verify all figures against AIS, Form 26AS, the official filing utility, and a qualified professional before acting.";
 var IncomeCategorySchema = external_exports.enum([
   "salary",
   "interest",
   "dividend",
+  "foreign_dividend",
   "listed_equity_stcg",
-  "listed_equity_ltcg"
+  "listed_equity_ltcg",
+  "employer_tds",
+  "foreign_tax_withheld",
+  "foreign_capital_gains",
+  "other_foreign_income"
 ]);
 var DocumentKindSchema = external_exports.enum(["form16", "ais", "broker_report", "other"]);
+var DataModeSchema = external_exports.enum(["synthetic_demo", "local_private"]);
 var SyntheticTaxpayerReferenceSchema = external_exports.string().regex(/^(?:SYNTH|DEID|DEMO)[A-Za-z0-9_-]{0,100}$/i, "Synthetic taxpayer references must start with SYNTH, DEID, or DEMO and contain no real identifier.");
 var FixtureEntrySchema = external_exports.object({
   id: external_exports.string().min(1).max(120).describe("Stable row or field identifier within the synthetic document."),
@@ -21142,6 +21149,18 @@ var FixtureDocumentSchema = external_exports.object({
   tax_year: external_exports.literal("FY2025-26"),
   assessment_year: external_exports.literal("AY2026-27"),
   taxpayer_ref: SyntheticTaxpayerReferenceSchema,
+  currency: external_exports.literal("INR"),
+  entries: external_exports.array(FixtureEntrySchema).min(1).max(200)
+}).strict();
+var LocalPrivateFixtureDocumentSchema = external_exports.object({
+  data_mode: external_exports.literal("local_private"),
+  id: external_exports.string().min(1).max(160),
+  kind: DocumentKindSchema,
+  display_name: external_exports.string().min(1).max(200),
+  synthetic: external_exports.literal(false),
+  tax_year: external_exports.literal("FY2025-26"),
+  assessment_year: external_exports.literal("AY2026-27"),
+  taxpayer_ref: external_exports.string().min(1).max(160),
   currency: external_exports.literal("INR"),
   entries: external_exports.array(FixtureEntrySchema).min(1).max(200)
 }).strict();
@@ -21169,7 +21188,11 @@ var SyntheticFixtureDocumentSchema = external_exports.object({
   currency: external_exports.literal("INR"),
   records: external_exports.array(SyntheticFixtureRecordSchema).min(1).max(200)
 }).strict();
-var FixtureDocumentInputSchema = external_exports.union([FixtureDocumentSchema, SyntheticFixtureDocumentSchema]);
+var FixtureDocumentInputSchema = external_exports.union([
+  FixtureDocumentSchema,
+  SyntheticFixtureDocumentSchema,
+  LocalPrivateFixtureDocumentSchema
+]);
 var EvidenceItemSchema = external_exports.object({
   evidence_id: external_exports.string(),
   document_id: external_exports.string(),
@@ -21182,13 +21205,35 @@ var EvidenceItemSchema = external_exports.object({
   locator: external_exports.string(),
   notes: external_exports.string().optional()
 }).strict();
+var LocalPrivateEvidenceItemSchema = EvidenceItemSchema.extend({
+  evidence_id: external_exports.string().regex(/^ev_[a-f0-9]{16}$/),
+  document_id: external_exports.string().regex(/^doc_[a-f0-9]{16}$/),
+  document_name: external_exports.string().regex(/^Private (?:form16|ais|broker_report|other) evidence$/),
+  entry_id: external_exports.string().regex(/^line_[a-f0-9]{16}$/),
+  label: external_exports.string().regex(/^Private (?:salary|interest|dividend|foreign_dividend|listed_equity_stcg|listed_equity_ltcg|employer_tds|foreign_tax_withheld|foreign_capital_gains|other_foreign_income) evidence$/),
+  locator: external_exports.string().regex(/^line_[a-f0-9]{16}$/),
+  notes: external_exports.never().optional()
+}).strict();
+var LocalPrivacyGuaranteesSchema = external_exports.object({
+  processing: external_exports.literal("local_only"),
+  persistence: external_exports.literal("none"),
+  network: external_exports.literal("none"),
+  identifiers: external_exports.literal("masked")
+}).strict();
+var OutputTaxpayerReferenceSchema = external_exports.union([
+  SyntheticTaxpayerReferenceSchema,
+  external_exports.string().regex(/^PRIVATE-[a-f0-9]{16}$/)
+]);
 var NormalizedDatasetSchema = external_exports.object({
+  data_mode: DataModeSchema,
   assessment_year: external_exports.literal(ASSESSMENT_YEAR),
   tax_year: external_exports.literal("FY2025-26"),
-  taxpayer_ref: SyntheticTaxpayerReferenceSchema,
-  synthetic: external_exports.literal(true),
-  evidence: external_exports.array(EvidenceItemSchema),
+  taxpayer_ref: OutputTaxpayerReferenceSchema,
+  synthetic: external_exports.boolean(),
+  evidence: external_exports.array(external_exports.union([EvidenceItemSchema, LocalPrivateEvidenceItemSchema])),
   warnings: external_exports.array(external_exports.string()),
+  source_set_hash: external_exports.string().regex(/^[a-f0-9]{64}$/),
+  privacy_guarantees: LocalPrivacyGuaranteesSchema.optional(),
   disclaimer: external_exports.string()
 }).strict();
 var ReconciliationStatusSchema = external_exports.enum(["matched", "single_source", "conflict", "confirmed"]);
@@ -21208,13 +21253,17 @@ var ReconciliationItemSchema = external_exports.object({
   explanation: external_exports.string(),
   action_required: external_exports.string().nullable()
 }).strict();
-var ReconciliationResultSchema = external_exports.object({
-  assessment_year: external_exports.literal(ASSESSMENT_YEAR),
+var ReconciliationResultBaseSchema = external_exports.object({
   tolerance_inr: external_exports.number().int().min(0).max(1e4),
   ready_for_calculation: external_exports.boolean(),
   items: external_exports.array(ReconciliationItemSchema),
   unresolved_categories: external_exports.array(IncomeCategorySchema),
   disclaimer: external_exports.string()
+}).strict();
+var ReconciliationResultSchema = ReconciliationResultBaseSchema.extend({
+  data_mode: DataModeSchema,
+  assessment_year: external_exports.literal(ASSESSMENT_YEAR),
+  taxpayer_ref: OutputTaxpayerReferenceSchema
 }).strict();
 var TaxpayerProfileSchema = external_exports.object({
   assessment_year: external_exports.literal(ASSESSMENT_YEAR),
@@ -21222,7 +21271,11 @@ var TaxpayerProfileSchema = external_exports.object({
   entity_type: external_exports.literal("individual"),
   age: external_exports.number().int().min(18).max(59).describe("MVP supports resident individuals under 60 only."),
   has_business_or_professional_income: external_exports.literal(false),
-  has_foreign_income_or_assets: external_exports.literal(false),
+  has_foreign_income_or_assets: external_exports.boolean(),
+  is_resident_and_ordinarily_resident: external_exports.boolean().optional(),
+  has_foreign_capital_gains: external_exports.boolean().optional(),
+  has_other_foreign_income: external_exports.boolean().optional(),
+  has_foreign_assets_beyond_dividend_source: external_exports.boolean().optional(),
   has_house_property_income: external_exports.literal(false),
   has_crypto_or_other_special_rate_income: external_exports.literal(false),
   claims_deductions_beyond_standard_deduction: external_exports.literal(false)
@@ -21232,7 +21285,12 @@ var TaxInputsSchema = external_exports.object({
   interest_inr: external_exports.number().int().nonnegative().max(5e7),
   dividend_inr: external_exports.number().int().nonnegative().max(5e7),
   listed_equity_stcg_inr: external_exports.number().int().nonnegative().max(5e7),
-  listed_equity_ltcg_inr: external_exports.number().int().nonnegative().max(5e7)
+  listed_equity_ltcg_inr: external_exports.number().int().nonnegative().max(5e7),
+  foreign_dividend_inr: external_exports.number().int().nonnegative().max(5e7).optional(),
+  employer_tds_inr: external_exports.number().int().nonnegative().max(5e7).optional(),
+  foreign_tax_withheld_inr: external_exports.number().int().nonnegative().max(5e7).optional(),
+  foreign_capital_gains_inr: external_exports.number().int().nonnegative().max(5e7).optional(),
+  other_foreign_income_inr: external_exports.number().int().nonnegative().max(5e7).optional()
 }).strict();
 var TaxRegimeSchema = external_exports.enum(["old", "new"]);
 var TaxCalculationSchema = external_exports.object({
@@ -21249,8 +21307,20 @@ var TaxCalculationSchema = external_exports.object({
   tax_before_cess_inr: external_exports.number(),
   health_education_cess_inr: external_exports.number(),
   total_tax_inr: external_exports.number(),
+  gross_tax_inr: external_exports.number().nonnegative(),
+  foreign_dividend_income_inr: external_exports.number().nonnegative(),
+  foreign_tax_credit_cap_inr: external_exports.number().nonnegative(),
+  foreign_tax_credit_inr: external_exports.number().nonnegative(),
+  employer_tds_inr: external_exports.number().nonnegative(),
+  net_tax_after_credits_inr: external_exports.number(),
+  estimated_balance_payable_inr: external_exports.number().nonnegative(),
+  estimated_refund_inr: external_exports.number().nonnegative(),
+  rounding_unit_inr: external_exports.literal(10),
+  form67_required_for_ftc_claim: external_exports.boolean(),
+  ror_confirmation_required: external_exports.boolean(),
   effective_rate_percent: external_exports.number(),
   assumptions: external_exports.array(external_exports.string()),
+  warnings: external_exports.array(external_exports.string()),
   source_urls: external_exports.array(external_exports.string()),
   disclaimer: external_exports.string()
 }).strict();
@@ -21263,18 +21333,16 @@ var RegimeComparisonSchema = external_exports.object({
   recommendation_limit: external_exports.string(),
   disclaimer: external_exports.string()
 }).strict();
-var TaxProofPackSchema = external_exports.object({
+var TaxProofPackBaseSchema = external_exports.object({
   schema_version: external_exports.literal("0.1.0"),
   generated_at: external_exports.string().datetime(),
   assessment_year: external_exports.literal(ASSESSMENT_YEAR),
-  synthetic: external_exports.literal(true),
   supported_profile: TaxpayerProfileSchema,
-  reconciliation: ReconciliationResultSchema,
   calculation: RegimeComparisonSchema,
-  evidence_index: external_exports.array(EvidenceItemSchema),
   unresolved_actions: external_exports.array(external_exports.string()),
   integrity: external_exports.object({
     algorithm: external_exports.literal("SHA-256"),
+    source_set_hash: external_exports.string().regex(/^[a-f0-9]{64}$/),
     dataset_hash: external_exports.string().regex(/^[a-f0-9]{64}$/),
     reconciliation_hash: external_exports.string().regex(/^[a-f0-9]{64}$/),
     calculation_hash: external_exports.string().regex(/^[a-f0-9]{64}$/),
@@ -21282,14 +21350,32 @@ var TaxProofPackSchema = external_exports.object({
   }),
   disclaimer: external_exports.string()
 }).strict();
+var TaxProofPackSchema = TaxProofPackBaseSchema.extend({
+  data_mode: DataModeSchema,
+  synthetic: external_exports.boolean(),
+  taxpayer_ref: OutputTaxpayerReferenceSchema,
+  reconciliation: ReconciliationResultSchema,
+  evidence_index: external_exports.array(external_exports.union([EvidenceItemSchema, LocalPrivateEvidenceItemSchema])),
+  privacy_guarantees: LocalPrivacyGuaranteesSchema.optional()
+}).strict();
 
 // packages/engine/dist/index.js
-import { createHash } from "node:crypto";
+import { createHash, createHmac, randomBytes } from "node:crypto";
 var OFFICIAL_RULE_SOURCES = [
   "https://www.incometax.gov.in/iec/foportal/help/individual/return-applicable-1",
   "https://www.incometax.gov.in/iec/foportal/help/all-topics/e-filing-services/file-itr-2-online",
   "https://www.incometax.gov.in/iec/foportal/sites/default/files/2026-05/CBDT__e-Filing_ITR%202_Validation%20Rules_AY%202026-27_V1.0.pdf"
 ];
+var FOREIGN_TAX_CREDIT_SOURCES = [
+  "https://www.incometax.gov.in/iec/foportal/help/statutory-forms/popular-form/form67-um",
+  "https://www.incometaxindia.gov.in/w/form-67",
+  "https://wmstatic-prd.incometaxindia.gov.in/web/guest/w/schedule_fsi",
+  "https://wmstatic-prd.incometaxindia.gov.in/documents/20117/42998/Rule-128_2026-01-13_11-37-01_1c629b_en.pdf/145a3343-3b83-7223-7064-8fd9194f161c?download=true&t=1775731788761&version=6.0"
+];
+var LOCAL_PRIVATE_SESSION_KEY = randomBytes(32);
+function disclaimerFor(dataMode) {
+  return dataMode === "local_private" ? PRIVATE_REVIEW_DISCLAIMER : DISCLAIMER;
+}
 var UnsupportedTaxProfileError = class extends Error {
   constructor(message) {
     super(message);
@@ -21329,9 +21415,19 @@ function assertNoSyntheticPii(value) {
   visit(value);
 }
 function assertNormalizedDatasetIntegrity(dataset) {
+  if (dataset.data_mode === "local_private") {
+    if (dataset.synthetic || !/^PRIVATE-[a-f0-9]{16}$/.test(dataset.taxpayer_ref) || dataset.privacy_guarantees?.processing !== "local_only" || dataset.privacy_guarantees.persistence !== "none" || dataset.privacy_guarantees.network !== "none" || dataset.privacy_guarantees.identifiers !== "masked") {
+      throw new Error("Local-private dataset metadata is invalid or missing its privacy guarantees.");
+    }
+  } else if (!dataset.synthetic || !/^(?:SYNTH|DEID|DEMO)[A-Za-z0-9_-]{0,100}$/i.test(dataset.taxpayer_ref) || dataset.privacy_guarantees !== void 0) {
+    throw new Error("Synthetic-demo dataset metadata is inconsistent with synthetic mode.");
+  }
   const evidenceIds = /* @__PURE__ */ new Set();
   const documentMetadata = /* @__PURE__ */ new Map();
   for (const item of dataset.evidence) {
+    if (dataset.data_mode === "local_private" && (!/^ev_[a-f0-9]{16}$/.test(item.evidence_id) || !/^doc_[a-f0-9]{16}$/.test(item.document_id) || !/^line_[a-f0-9]{16}$/.test(item.entry_id) || !/^line_[a-f0-9]{16}$/.test(item.locator) || !/^Private (?:form16|ais|broker_report|other) evidence$/.test(item.document_name) || !/^Private (?:salary|interest|dividend|foreign_dividend|listed_equity_stcg|listed_equity_ltcg|employer_tds|foreign_tax_withheld|foreign_capital_gains|other_foreign_income) evidence$/.test(item.label) || item.notes !== void 0)) {
+      throw new Error("Local-private dataset contains unmasked evidence metadata. Re-run local-private normalization.");
+    }
     if (evidenceIds.has(item.evidence_id)) {
       throw new Error(`Normalized dataset contains duplicate evidence ID ${item.evidence_id}. Re-run normalization from the original synthetic documents.`);
     }
@@ -21348,6 +21444,22 @@ function assertNormalizedDatasetIntegrity(dataset) {
 }
 function isSyntheticFixture(document) {
   return "schema_version" in document;
+}
+function isLocalPrivateFixture(document) {
+  return "data_mode" in document && document.data_mode === "local_private";
+}
+function inputDataMode(document) {
+  return isLocalPrivateFixture(document) ? "local_private" : "synthetic_demo";
+}
+function rawDocumentId(document) {
+  return isSyntheticFixture(document) ? document.document_id : document.id;
+}
+function privateToken(prefix, value) {
+  const digest = createHmac("sha256", LOCAL_PRIVATE_SESSION_KEY).update(value).digest("hex").slice(0, 16);
+  return `${prefix}-${digest}`.replace("doc-", "doc_").replace("ev-", "ev_").replace("line-", "line_");
+}
+function safeInputIdentifier(dataMode, prefix, raw) {
+  return dataMode === "local_private" ? privateToken(prefix, raw) : raw;
 }
 function fixtureKind(kind) {
   if (kind === "form16_like")
@@ -21379,12 +21491,20 @@ function normalizeFixtureData(documentsInput) {
     throw new Error("At least one synthetic fixture document is required.");
   }
   const parsedDocuments = documentsInput.map((document) => FixtureDocumentInputSchema.parse(document));
-  assertNoSyntheticPii(parsedDocuments);
+  const dataModes = new Set(parsedDocuments.map(inputDataMode));
+  if (dataModes.size !== 1) {
+    throw new Error("Synthetic-demo and local-private documents cannot be mixed in one normalization request.");
+  }
+  const dataMode = [...dataModes][0];
+  if (!dataMode)
+    throw new Error("Unable to determine the document data mode.");
+  if (dataMode === "synthetic_demo")
+    assertNoSyntheticPii(parsedDocuments);
   const taxpayerRefs = new Set(parsedDocuments.map((document) => document.taxpayer_ref));
   const taxYears = new Set(parsedDocuments.map((document) => document.tax_year));
   const assessmentYears = new Set(parsedDocuments.map((document) => document.assessment_year));
   if (taxpayerRefs.size !== 1) {
-    throw new Error("All documents in one normalization request must use the same synthetic taxpayer_ref.");
+    throw new Error("All documents in one normalization request must use the same taxpayer reference.");
   }
   if (taxYears.size !== 1 || assessmentYears.size !== 1) {
     throw new Error("All documents in one normalization request must use the same FY2025-26 / AY2026-27 period.");
@@ -21393,14 +21513,15 @@ function normalizeFixtureData(documentsInput) {
   const documentFingerprints = /* @__PURE__ */ new Map();
   const warnings = [];
   for (const document of parsedDocuments) {
-    const documentId = isSyntheticFixture(document) ? document.document_id : document.id;
+    const documentId = rawDocumentId(document);
+    const safeDocumentId = safeInputIdentifier(dataMode, "doc", documentId);
     const fingerprint = canonicalize(document);
     const priorFingerprint = documentFingerprints.get(documentId);
     if (priorFingerprint !== void 0) {
       if (priorFingerprint !== fingerprint) {
-        throw new Error(`Document ID collision for ${documentId}. Two different documents cannot share an identifier.`);
+        throw new Error(`Document ID collision for ${safeDocumentId}. Two different documents cannot share an identifier.`);
       }
-      warnings.push(`Deduplicated repeated document ${documentId}; its evidence was processed once.`);
+      warnings.push(`Deduplicated repeated document ${safeDocumentId}; its evidence was processed once.`);
       continue;
     }
     documentFingerprints.set(documentId, fingerprint);
@@ -21453,6 +21574,24 @@ function normalizeFixtureData(documentsInput) {
       }
       continue;
     }
+    if (isLocalPrivateFixture(document)) {
+      const documentId = privateToken("doc", document.id);
+      for (const entry of document.entries) {
+        const entryToken = privateToken("line", `${document.id}:${entry.id}`);
+        appendEvidence({
+          evidence_id: privateToken("ev", `${document.id}:${entry.id}`),
+          document_id: documentId,
+          document_kind: document.kind,
+          document_name: `Private ${document.kind} evidence`,
+          entry_id: entryToken,
+          label: `Private ${entry.category} evidence`,
+          category: entry.category,
+          amount_inr: entry.amount_inr,
+          locator: entryToken
+        });
+      }
+      continue;
+    }
     for (const entry of document.entries) {
       appendEvidence({
         evidence_id: `${document.id}:${entry.id}`,
@@ -21471,13 +21610,39 @@ function normalizeFixtureData(documentsInput) {
   if (evidence.length === 0) {
     throw new Error("No supported taxable-income records were found. Supply synthetic salary, savings-interest, dividend, section 111A STCG, or section 112A LTCG records.");
   }
+  const rawTaxpayerRef = [...taxpayerRefs][0];
+  if (!rawTaxpayerRef)
+    throw new Error("Unable to establish one taxpayer reference.");
+  const sourceMaterial = canonicalize(documents);
+  const sourceSetHash = dataMode === "local_private" ? createHmac("sha256", LOCAL_PRIVATE_SESSION_KEY).update(sourceMaterial).digest("hex") : createHash("sha256").update(sourceMaterial).digest("hex");
+  if (dataMode === "local_private") {
+    return NormalizedDatasetSchema.parse({
+      data_mode: dataMode,
+      assessment_year: ASSESSMENT_YEAR,
+      tax_year: "FY2025-26",
+      taxpayer_ref: privateToken("PRIVATE", rawTaxpayerRef),
+      synthetic: false,
+      evidence,
+      warnings,
+      source_set_hash: sourceSetHash,
+      privacy_guarantees: {
+        processing: "local_only",
+        persistence: "none",
+        network: "none",
+        identifiers: "masked"
+      },
+      disclaimer: PRIVATE_REVIEW_DISCLAIMER
+    });
+  }
   return NormalizedDatasetSchema.parse({
+    data_mode: dataMode,
     assessment_year: ASSESSMENT_YEAR,
     tax_year: "FY2025-26",
-    taxpayer_ref: [...taxpayerRefs][0],
+    taxpayer_ref: rawTaxpayerRef,
     synthetic: true,
     evidence,
     warnings,
+    source_set_hash: sourceSetHash,
     disclaimer: DISCLAIMER
   });
 }
@@ -21485,8 +21650,13 @@ var CATEGORY_ORDER = [
   "salary",
   "interest",
   "dividend",
+  "foreign_dividend",
   "listed_equity_stcg",
-  "listed_equity_ltcg"
+  "listed_equity_ltcg",
+  "employer_tds",
+  "foreign_tax_withheld",
+  "foreign_capital_gains",
+  "other_foreign_income"
 ];
 function aggregateSources(items) {
   const sources = /* @__PURE__ */ new Map();
@@ -21581,12 +21751,14 @@ function reconcileEvidence(datasetInput, confirmations = {}, toleranceInr = 1) {
   }
   const unresolvedCategories = items.filter((item) => item.status === "conflict").map((item) => item.category);
   return ReconciliationResultSchema.parse({
+    data_mode: dataset.data_mode,
     assessment_year: ASSESSMENT_YEAR,
+    taxpayer_ref: dataset.taxpayer_ref,
     tolerance_inr: toleranceInr,
     ready_for_calculation: unresolvedCategories.length === 0,
     items,
     unresolved_categories: unresolvedCategories,
-    disclaimer: DISCLAIMER
+    disclaimer: disclaimerFor(dataset.data_mode)
   });
 }
 function taxInputsFromReconciliation(resultInput) {
@@ -21595,12 +21767,18 @@ function taxInputsFromReconciliation(resultInput) {
     throw new Error(`Reconciliation is unresolved for: ${result.unresolved_categories.join(", ")}. Confirm each conflict before calculating.`);
   }
   const amount = (category) => result.items.find((item) => item.category === category)?.selected_amount_inr ?? 0;
+  const optionalAmount = (category, field) => result.items.some((item) => item.category === category) ? { [field]: amount(category) } : {};
   return TaxInputsSchema.parse({
     salary_inr: amount("salary"),
     interest_inr: amount("interest"),
     dividend_inr: amount("dividend"),
     listed_equity_stcg_inr: amount("listed_equity_stcg"),
-    listed_equity_ltcg_inr: amount("listed_equity_ltcg")
+    listed_equity_ltcg_inr: amount("listed_equity_ltcg"),
+    ...optionalAmount("foreign_dividend", "foreign_dividend_inr"),
+    ...optionalAmount("employer_tds", "employer_tds_inr"),
+    ...optionalAmount("foreign_tax_withheld", "foreign_tax_withheld_inr"),
+    ...optionalAmount("foreign_capital_gains", "foreign_capital_gains_inr"),
+    ...optionalAmount("other_foreign_income", "other_foreign_income_inr")
   });
 }
 var OLD_SLABS = [
@@ -21629,14 +21807,45 @@ function slabTax(income, slabs) {
 function rupee(value) {
   return Math.round(value);
 }
-function assertSupported(profileInput, inputsInput) {
+function assertSupported(profileInput, inputsInput, dataMode) {
   const profile = TaxpayerProfileSchema.parse(profileInput);
-  const inputs = TaxInputsSchema.parse(inputsInput);
+  const parsedInputs = TaxInputsSchema.parse(inputsInput);
+  const inputs = {
+    ...parsedInputs,
+    foreign_dividend_inr: parsedInputs.foreign_dividend_inr ?? 0,
+    employer_tds_inr: parsedInputs.employer_tds_inr ?? 0,
+    foreign_tax_withheld_inr: parsedInputs.foreign_tax_withheld_inr ?? 0,
+    foreign_capital_gains_inr: parsedInputs.foreign_capital_gains_inr ?? 0,
+    other_foreign_income_inr: parsedInputs.other_foreign_income_inr ?? 0
+  };
   if (inputs.salary_inr === 0) {
     throw new UnsupportedTaxProfileError("This MVP requires positive salary income; it does not support a capital-gains-only or other-income-only return.");
   }
+  if (inputs.foreign_capital_gains_inr > 0 || inputs.other_foreign_income_inr > 0 || profile.has_foreign_capital_gains === true || profile.has_other_foreign_income === true || profile.has_foreign_assets_beyond_dividend_source === true) {
+    throw new UnsupportedTaxProfileError("This MVP supports foreign dividends only. Foreign capital gains, other foreign income, and additional foreign assets must be reviewed outside this deterministic profile.");
+  }
+  const hasForeignDividendCase = inputs.foreign_dividend_inr > 0 || inputs.foreign_tax_withheld_inr > 0;
+  if (hasForeignDividendCase) {
+    if (dataMode !== "local_private") {
+      throw new UnsupportedTaxProfileError("Foreign dividend and foreign-tax-credit calculations are available only in local_private mode.");
+    }
+    if (!profile.has_foreign_income_or_assets) {
+      throw new UnsupportedTaxProfileError("The taxpayer profile must explicitly declare foreign income or assets for a foreign-dividend calculation.");
+    }
+    if (profile.is_resident_and_ordinarily_resident === false) {
+      throw new UnsupportedTaxProfileError("This foreign-dividend profile does not support a taxpayer who is explicitly not Resident and Ordinarily Resident (ROR).");
+    }
+    if (profile.has_foreign_capital_gains !== false || profile.has_other_foreign_income !== false || profile.has_foreign_assets_beyond_dividend_source !== false) {
+      throw new UnsupportedTaxProfileError("Confirm that foreign capital gains, other foreign income, and foreign assets beyond the dividend source are all absent before using this narrow profile.");
+    }
+    if (inputs.foreign_dividend_inr === 0) {
+      throw new UnsupportedTaxProfileError("Foreign tax withheld cannot be credited without a positive foreign dividend included in Indian taxable income.");
+    }
+  } else if (profile.has_foreign_income_or_assets) {
+    throw new UnsupportedTaxProfileError("The profile declares foreign income or assets, but this calculation contains no supported foreign dividend.");
+  }
   const taxableLtcg = Math.max(0, inputs.listed_equity_ltcg_inr - 125e3);
-  const conservativeMaximum = inputs.salary_inr + inputs.interest_inr + inputs.dividend_inr + inputs.listed_equity_stcg_inr + taxableLtcg;
+  const conservativeMaximum = inputs.salary_inr + inputs.interest_inr + inputs.dividend_inr + inputs.foreign_dividend_inr + inputs.listed_equity_stcg_inr + taxableLtcg;
   if (conservativeMaximum > 5e6) {
     throw new UnsupportedTaxProfileError("This MVP stops at \u20B950 lakh because surcharge and marginal-relief calculations are not implemented. Use a supported synthetic fixture below that threshold.");
   }
@@ -21645,10 +21854,9 @@ function assertSupported(profileInput, inputsInput) {
   }
   return { profile, inputs };
 }
-function calculateRegime(regime, profileInput, inputsInput) {
-  const { inputs } = assertSupported(profileInput, inputsInput);
+function calculateGrossTax(regime, inputs) {
   const standardDeduction = Math.min(inputs.salary_inr, regime === "new" ? 75e3 : 5e4);
-  const normalIncome = Math.max(0, inputs.salary_inr - standardDeduction + inputs.interest_inr + inputs.dividend_inr);
+  const normalIncome = Math.max(0, inputs.salary_inr - standardDeduction + inputs.interest_inr + inputs.dividend_inr + inputs.foreign_dividend_inr);
   const taxableStcg = inputs.listed_equity_stcg_inr;
   const taxableLtcg = Math.max(0, inputs.listed_equity_ltcg_inr - 125e3);
   const totalTaxableIncome = normalIncome + taxableStcg + taxableLtcg;
@@ -21658,47 +21866,98 @@ function calculateRegime(regime, profileInput, inputsInput) {
   const rebate = regime === "new" && totalTaxableIncome <= 12e5 ? Math.min(6e4, calculatedSlabTax) : regime === "old" && totalTaxableIncome <= 5e5 ? Math.min(12500, calculatedSlabTax) : 0;
   const taxBeforeCess = calculatedSlabTax - rebate + stcgTax + ltcgTax;
   const cess = taxBeforeCess * 0.04;
-  const totalTax = rupee(taxBeforeCess + cess);
+  return {
+    standardDeduction,
+    normalIncome,
+    taxableStcg,
+    taxableLtcg,
+    totalTaxableIncome,
+    calculatedSlabTax,
+    stcgTax,
+    ltcgTax,
+    rebate,
+    taxBeforeCess,
+    cess,
+    totalTax: rupee(taxBeforeCess + cess)
+  };
+}
+function roundToNearestTen(value) {
+  return Math.round(value / 10) * 10;
+}
+function calculateRegime(regime, profileInput, inputsInput, dataMode) {
+  const { profile, inputs } = assertSupported(profileInput, inputsInput, dataMode);
+  const gross = calculateGrossTax(regime, inputs);
+  const withoutForeignDividend = calculateGrossTax(regime, {
+    ...inputs,
+    foreign_dividend_inr: 0,
+    foreign_tax_withheld_inr: 0
+  });
+  const foreignTaxCreditCap = Math.max(0, gross.totalTax - withoutForeignDividend.totalTax);
+  const foreignTaxCredit = Math.min(inputs.foreign_tax_withheld_inr, foreignTaxCreditCap);
+  const netTaxAfterCredits = gross.totalTax - foreignTaxCredit - inputs.employer_tds_inr;
+  const estimatedBalancePayable = netTaxAfterCredits > 0 ? roundToNearestTen(netTaxAfterCredits) : 0;
+  const estimatedRefund = netTaxAfterCredits < 0 ? roundToNearestTen(-netTaxAfterCredits) : 0;
+  const hasForeignDividend = inputs.foreign_dividend_inr > 0;
+  const warnings = hasForeignDividend ? [
+    profile.is_resident_and_ordinarily_resident === true ? "The profile records ROR confirmation, but residential status must still be re-checked before filing." : "ROR status has not been confirmed. This estimate is conditional; confirm Resident and Ordinarily Resident status before relying on foreign-dividend treatment.",
+    "Any FTC estimate is conditional on eligible, undisputed foreign tax, INR conversion, supporting evidence, Schedule FSI/TR disclosures, and timely Form 67 compliance.",
+    ...inputs.foreign_tax_withheld_inr > foreignTaxCredit ? [
+      `\u20B9${rupee(inputs.foreign_tax_withheld_inr - foreignTaxCredit).toLocaleString("en-IN")} of reported foreign tax withheld is not included in this conservative FTC estimate.`
+    ] : []
+  ] : [];
   return {
     regime,
-    standard_deduction_inr: rupee(standardDeduction),
-    normal_rate_income_inr: rupee(normalIncome),
-    taxable_stcg_inr: rupee(taxableStcg),
-    taxable_ltcg_inr: rupee(taxableLtcg),
-    total_taxable_income_inr: rupee(totalTaxableIncome),
-    slab_tax_inr: rupee(calculatedSlabTax),
-    stcg_tax_inr: rupee(stcgTax),
-    ltcg_tax_inr: rupee(ltcgTax),
-    rebate_87a_inr: rupee(rebate),
-    tax_before_cess_inr: rupee(taxBeforeCess),
-    health_education_cess_inr: rupee(cess),
-    total_tax_inr: totalTax,
-    effective_rate_percent: totalTaxableIncome === 0 ? 0 : Math.round(totalTax / totalTaxableIncome * 1e4) / 100,
+    standard_deduction_inr: rupee(gross.standardDeduction),
+    normal_rate_income_inr: rupee(gross.normalIncome),
+    taxable_stcg_inr: rupee(gross.taxableStcg),
+    taxable_ltcg_inr: rupee(gross.taxableLtcg),
+    total_taxable_income_inr: rupee(gross.totalTaxableIncome),
+    slab_tax_inr: rupee(gross.calculatedSlabTax),
+    stcg_tax_inr: rupee(gross.stcgTax),
+    ltcg_tax_inr: rupee(gross.ltcgTax),
+    rebate_87a_inr: rupee(gross.rebate),
+    tax_before_cess_inr: rupee(gross.taxBeforeCess),
+    health_education_cess_inr: rupee(gross.cess),
+    total_tax_inr: gross.totalTax,
+    gross_tax_inr: gross.totalTax,
+    foreign_dividend_income_inr: inputs.foreign_dividend_inr,
+    foreign_tax_credit_cap_inr: foreignTaxCreditCap,
+    foreign_tax_credit_inr: foreignTaxCredit,
+    employer_tds_inr: inputs.employer_tds_inr,
+    net_tax_after_credits_inr: netTaxAfterCredits,
+    estimated_balance_payable_inr: estimatedBalancePayable,
+    estimated_refund_inr: estimatedRefund,
+    rounding_unit_inr: 10,
+    form67_required_for_ftc_claim: foreignTaxCredit > 0,
+    ror_confirmation_required: hasForeignDividend && profile.is_resident_and_ordinarily_resident !== true,
+    effective_rate_percent: gross.totalTaxableIncome === 0 ? 0 : Math.round(gross.totalTax / gross.totalTaxableIncome * 1e4) / 100,
     assumptions: [
-      "Resident individual under age 60 for AY 2026-27; no business, profession, foreign, house-property, crypto, or other special-rate income.",
+      hasForeignDividend && profile.is_resident_and_ordinarily_resident === true ? "Resident and Ordinarily Resident individual under age 60 for AY 2026-27; foreign income is limited to dividends, with no foreign capital gains, other foreign income, or additional foreign assets." : hasForeignDividend ? "Conditional resident-individual estimate under age 60 for AY 2026-27; ROR is not yet confirmed, and foreign income is limited to dividends with all other foreign categories explicitly absent." : "Resident individual under age 60 for AY 2026-27; no business, profession, foreign, house-property, crypto, or other special-rate income.",
       "Only the standard deduction is applied: up to \u20B950,000 under old regime and \u20B975,000 under new regime.",
       "Section 111A listed-equity STCG is estimated at 20%; section 112A listed-equity LTCG is estimated at 12.5% above the aggregate \u20B91,25,000 threshold.",
       "Section 87A rebate, when eligible, reduces normal slab-rate tax only; it does not reduce special-rate capital-gains tax.",
-      "Health and Education Cess is estimated at 4%. Surcharge, marginal relief above \u20B912 lakh, losses, set-off, rounding under section 288B, interest, and tax credits are outside this MVP."
+      hasForeignDividend ? "FTC is conservatively limited to the lower of reported foreign tax withheld and the incremental gross Indian tax produced by the foreign dividend; treaty-specific rates, disputed tax, and carry-forward are not computed." : "No foreign tax credit is computed because no foreign dividend or foreign tax withheld was supplied.",
+      "Health and Education Cess is estimated at 4%. Surcharge, marginal relief above \u20B912 lakh, losses, set-off, and interest are outside this MVP; the final balance or refund estimate is rounded to the nearest \u20B910."
     ],
-    source_urls: [...OFFICIAL_RULE_SOURCES],
-    disclaimer: DISCLAIMER
+    warnings,
+    source_urls: hasForeignDividend ? [...OFFICIAL_RULE_SOURCES, ...FOREIGN_TAX_CREDIT_SOURCES] : [...OFFICIAL_RULE_SOURCES],
+    disclaimer: disclaimerFor(dataMode)
   };
 }
-function compareTaxRegimes(profileInput, inputsInput) {
+function compareTaxRegimes(profileInput, inputsInput, dataMode = "synthetic_demo") {
   const profile = TaxpayerProfileSchema.parse(profileInput);
   const inputs = TaxInputsSchema.parse(inputsInput);
-  const oldRegime = calculateRegime("old", profile, inputs);
-  const newRegime = calculateRegime("new", profile, inputs);
-  const lowerEstimatedRegime = oldRegime.total_tax_inr <= newRegime.total_tax_inr ? "old" : "new";
+  const oldRegime = calculateRegime("old", profile, inputs, dataMode);
+  const newRegime = calculateRegime("new", profile, inputs, dataMode);
+  const lowerEstimatedRegime = oldRegime.net_tax_after_credits_inr <= newRegime.net_tax_after_credits_inr ? "old" : "new";
   return RegimeComparisonSchema.parse({
     assessment_year: ASSESSMENT_YEAR,
     old_regime: oldRegime,
     new_regime: newRegime,
     lower_estimated_regime: lowerEstimatedRegime,
-    estimated_difference_inr: Math.abs(oldRegime.total_tax_inr - newRegime.total_tax_inr),
-    recommendation_limit: "This mechanical comparison is not a filing recommendation. It excludes deductions beyond the standard deduction and all unsupported income, relief, loss, credit, and surcharge cases.",
-    disclaimer: DISCLAIMER
+    estimated_difference_inr: Math.abs(oldRegime.net_tax_after_credits_inr - newRegime.net_tax_after_credits_inr),
+    recommendation_limit: "This mechanical comparison is not a filing recommendation. It excludes deductions beyond the standard deduction and all unsupported income, relief, loss, treaty-specific credit, and surcharge cases.",
+    disclaimer: disclaimerFor(dataMode)
   });
 }
 function canonicalize(value) {
@@ -21732,7 +21991,7 @@ function generateTaxProofPack(args) {
   if (canonicalize(recomputedReconciliation) !== canonicalize(reconciliation)) {
     throw new Error("Reconciliation integrity check failed. The supplied reconciliation is not reproducible from the source evidence and recorded confirmations.");
   }
-  const recomputedCalculation = compareTaxRegimes(profile, taxInputsFromReconciliation(recomputedReconciliation));
+  const recomputedCalculation = compareTaxRegimes(profile, taxInputsFromReconciliation(recomputedReconciliation), dataset.data_mode);
   if (canonicalize(recomputedCalculation) !== canonicalize(calculation)) {
     throw new Error("Calculation integrity check failed. The supplied calculation is not reproducible from the bound reconciliation and taxpayer profile.");
   }
@@ -21740,14 +21999,17 @@ function generateTaxProofPack(args) {
   const payload = {
     schema_version: "0.1.0",
     generated_at: generatedAt,
+    data_mode: dataset.data_mode,
     assessment_year: ASSESSMENT_YEAR,
-    synthetic: true,
+    taxpayer_ref: dataset.taxpayer_ref,
+    synthetic: dataset.synthetic,
     supported_profile: profile,
     reconciliation: recomputedReconciliation,
     calculation: recomputedCalculation,
     evidence_index: dataset.evidence,
-    unresolved_actions: reconciliation.items.flatMap((item) => item.action_required ? [item.action_required] : []),
-    disclaimer: DISCLAIMER
+    unresolved_actions: recomputedReconciliation.items.flatMap((item) => item.action_required ? [item.action_required] : []),
+    ...dataset.data_mode === "local_private" ? { privacy_guarantees: dataset.privacy_guarantees } : {},
+    disclaimer: disclaimerFor(dataset.data_mode)
   };
   const datasetHash = createHash("sha256").update(canonicalize(dataset)).digest("hex");
   const reconciliationHash = createHash("sha256").update(canonicalize(recomputedReconciliation)).digest("hex");
@@ -21757,6 +22019,7 @@ function generateTaxProofPack(args) {
     ...payload,
     integrity: {
       algorithm: "SHA-256",
+      source_set_hash: dataset.source_set_hash,
       dataset_hash: datasetHash,
       reconciliation_hash: reconciliationHash,
       calculation_hash: calculationHash,
@@ -21766,6 +22029,10 @@ function generateTaxProofPack(args) {
 }
 
 // packages/mcp/src/server.ts
+var SyntheticDocumentInputSchema = external_exports.union([
+  FixtureDocumentSchema,
+  SyntheticFixtureDocumentSchema
+]);
 var ResponseFormatSchema = external_exports.enum(["summary", "json"]).default("summary");
 var READ_ONLY_ANNOTATIONS = {
   readOnlyHint: true,
@@ -21781,8 +22048,13 @@ var ConfirmationSchema = external_exports.object({
   salary: external_exports.number().int().nonnegative().max(5e7).optional(),
   interest: external_exports.number().int().nonnegative().max(5e7).optional(),
   dividend: external_exports.number().int().nonnegative().max(5e7).optional(),
+  foreign_dividend: external_exports.number().int().nonnegative().max(5e7).optional(),
   listed_equity_stcg: external_exports.number().int().nonnegative().max(5e7).optional(),
-  listed_equity_ltcg: external_exports.number().int().nonnegative().max(5e7).optional()
+  listed_equity_ltcg: external_exports.number().int().nonnegative().max(5e7).optional(),
+  employer_tds: external_exports.number().int().nonnegative().max(5e7).optional(),
+  foreign_tax_withheld: external_exports.number().int().nonnegative().max(5e7).optional(),
+  foreign_capital_gains: external_exports.number().int().nonnegative().max(5e7).optional(),
+  other_foreign_income: external_exports.number().int().nonnegative().max(5e7).optional()
 }).strict();
 var BUILD_WEEK_FIXTURE_FILES = [
   "form16.synthetic.json",
@@ -21801,7 +22073,7 @@ async function loadBuildWeekFixtures() {
       return await Promise.all(
         BUILD_WEEK_FIXTURE_FILES.map(async (filename) => {
           const json = await readFile(resolve(fixturesDirectory, filename), "utf8");
-          return FixtureDocumentInputSchema.parse(JSON.parse(json));
+          return SyntheticDocumentInputSchema.parse(JSON.parse(json));
         })
       );
     } catch (error2) {
@@ -21814,13 +22086,14 @@ async function loadBuildWeekFixtures() {
   );
 }
 function textResult(output, responseFormat, summary) {
+  const boundary = typeof output.disclaimer === "string" ? output.disclaimer : DISCLAIMER;
   return {
     content: [
       {
         type: "text",
         text: responseFormat === "json" ? JSON.stringify(output, null, 2) : `${summary}
 
-${DISCLAIMER}`
+${boundary}`
       }
     ],
     structuredContent: output
@@ -21844,7 +22117,7 @@ function createLazyTaxServer() {
       title: "Normalize Synthetic Tax Fixtures",
       description: "Validate and normalize supplied synthetic AY 2026-27 Form 16-like, AIS-like, and broker P&L-like JSON into source-linked evidence. This tool accepts synthetic demo data only, ignores derived/non-taxable fixture rows with warnings, performs no OCR, reads only the three bundled demo fixtures when fixture_set is selected, and does not file a return. Use it before reconciliation.",
       inputSchema: external_exports.object({
-        documents: external_exports.array(FixtureDocumentInputSchema).min(1).max(10).optional().describe("One to ten supplied synthetic documents; real taxpayer documents are intentionally rejected."),
+        documents: external_exports.array(SyntheticDocumentInputSchema).min(1).max(10).optional().describe("One to ten supplied synthetic documents; real taxpayer documents are intentionally rejected."),
         fixture_set: external_exports.literal("build_week_demo").optional().describe("Load the three bundled root fixtures/*.synthetic.json files read-only."),
         response_format: ResponseFormatSchema
       }).strict(),
@@ -21872,10 +22145,42 @@ function createLazyTaxServer() {
     }
   );
   server.registerTool(
+    "lazytax_normalize_private_tax_facts",
+    {
+      title: "Normalize Private Local Tax Facts",
+      description: "Normalize structured tax facts extracted read-only from only the private documents the user explicitly authorized. This local, in-process tool accepts real identifiers solely to bind one taxpayer and deduplicate sources, then HMAC-pseudonymizes every taxpayer, document, evidence, and line identifier before returning data. It does not open files, persist inputs, use the network, log PII, calculate tax, or file a return. Pass only tax-relevant facts and never pass passwords, OTPs, portal credentials, Aadhaar, signatures, addresses, or contact details.",
+      inputSchema: external_exports.object({
+        documents: external_exports.array(LocalPrivateFixtureDocumentSchema).min(1).max(10).describe("One to ten explicitly authorized FY2025-26 private documents represented as structured tax facts."),
+        local_private_processing_consent: external_exports.literal(true).describe("True only when the user explicitly asked LazyTax to process these named documents for this tax task."),
+        response_format: ResponseFormatSchema
+      }).strict(),
+      outputSchema: NormalizedDatasetSchema,
+      annotations: READ_ONLY_ANNOTATIONS
+    },
+    async ({ documents, local_private_processing_consent, response_format }) => {
+      try {
+        if (local_private_processing_consent !== true) {
+          throw new Error("Explicit authorization for the named private documents is required.");
+        }
+        const output = normalizeFixtureData(documents);
+        return textResult(
+          output,
+          response_format,
+          `Normalized ${documents.length} private document(s) into ${output.evidence.length} masked, source-bound tax evidence item(s). Raw identifiers were not returned.`
+        );
+      } catch (error2) {
+        return actionableError(
+          error2,
+          "Use only the exact documents the user authorized, keep one FY2025-26 taxpayer per request, and exclude secrets or non-tax personal fields."
+        );
+      }
+    }
+  );
+  server.registerTool(
     "lazytax_reconcile_evidence",
     {
       title: "Reconcile Source-Linked Tax Evidence",
-      description: "Aggregate evidence per source and compare salary, interest, dividend, domestic listed-equity STCG, and domestic listed-equity LTCG. Conflicting source totals are left unresolved\u2014never guessed\u2014and require an explicit user-confirmed amount. Returns a calculation readiness flag and evidence IDs for every decision.",
+      description: "Aggregate evidence per source and compare supported income and credit categories, including salary, domestic/foreign dividends, domestic listed-equity gains, employer TDS, and foreign tax withheld. Conflicting source totals are left unresolved\u2014never guessed\u2014and require an explicit user-confirmed amount. Returns a calculation readiness flag and evidence IDs for every decision.",
       inputSchema: external_exports.object({
         dataset: NormalizedDatasetSchema,
         confirmed_amounts_inr: ConfirmationSchema.default({}).describe(
@@ -21900,7 +22205,7 @@ function createLazyTaxServer() {
       } catch (error2) {
         return actionableError(
           error2,
-          "Run lazytax_normalize_fixture_data first, then confirm only values you verified against the returned evidence IDs."
+          "Run the synthetic or private normalization tool first, then confirm only values you verified against the returned evidence IDs."
         );
       }
     }
@@ -21909,7 +22214,7 @@ function createLazyTaxServer() {
     "lazytax_calculate_compare_regimes",
     {
       title: "Calculate and Compare Supported Tax Regimes",
-      description: "Deterministically estimate old- and new-regime tax for the narrow AY 2026-27 demo profile: resident individual under 60 with salary, interest, dividends, and domestic STT-paid listed-equity gains only. It uses standard deductions, verified slabs, section 111A/112A rates, section 87A rules, and 4% cess. It rejects unresolved evidence, surcharge cases above \u20B950 lakh, the unsupported marginal-relief band, and every unsupported profile. It does not account for tax credits or file a return.",
+      description: "Deterministically estimate old- and new-regime tax and, in private mode, supported TDS/FTC settlement for the narrow AY 2026-27 profile: resident individual under 60 with salary, interest, domestic/foreign dividends, and domestic STT-paid listed-equity gains. It uses standard deductions, verified slabs, section 111A/112A rates, section 87A rules, 4% cess, and a conservative foreign-tax-credit cap. It rejects unresolved evidence, unsupported foreign gains/income, surcharge cases above \u20B950 lakh, the unsupported marginal-relief band, and every unsupported profile. It never files a return.",
       inputSchema: external_exports.object({
         profile: TaxpayerProfileSchema,
         reconciliation: ReconciliationResultSchema,
@@ -21921,11 +22226,11 @@ function createLazyTaxServer() {
     async ({ profile, reconciliation, response_format }) => {
       try {
         const inputs = taxInputsFromReconciliation(reconciliation);
-        const output = compareTaxRegimes(profile, inputs);
+        const output = compareTaxRegimes(profile, inputs, reconciliation.data_mode);
         return textResult(
           output,
           response_format,
-          `Estimated ${output.lower_estimated_regime}-regime tax is lower by \u20B9${output.estimated_difference_inr.toLocaleString("en-IN")} for this supported synthetic scenario. This is a mechanical comparison, not a filing recommendation.`
+          `Estimated ${output.lower_estimated_regime}-regime tax is lower by \u20B9${output.estimated_difference_inr.toLocaleString("en-IN")} for this supported ${reconciliation.data_mode === "local_private" ? "private" : "synthetic"} scenario. This is a mechanical comparison, not a filing recommendation.`
         );
       } catch (error2) {
         return actionableError(
@@ -21939,7 +22244,7 @@ function createLazyTaxServer() {
     "lazytax_generate_tax_proof_pack",
     {
       title: "Generate Structured Tax Proof Pack",
-      description: "Generate an evidence-indexed, SHA-256-integrity-stamped JSON proof artifact from an already normalized, reconciled, and calculated synthetic case. The artifact records sources, decisions, assumptions, official-rule URLs, and limitations. It is not an ITR JSON, is not valid for filing, and is blocked while conflicts remain unresolved.",
+      description: "Generate an evidence-indexed, SHA-256-integrity-stamped JSON proof artifact from an already normalized, reconciled, and calculated synthetic or private case. The artifact records masked sources, decisions, assumptions, official-rule URLs, and limitations. It is not an ITR JSON, is not valid for filing, and is blocked while conflicts remain unresolved.",
       inputSchema: external_exports.object({
         profile: TaxpayerProfileSchema,
         dataset: NormalizedDatasetSchema,
@@ -21960,7 +22265,7 @@ function createLazyTaxServer() {
         return textResult(
           output,
           response_format,
-          `Generated synthetic Tax Proof Pack ${output.integrity.canonical_payload_hash.slice(0, 12)}\u2026 with ${output.evidence_index.length} indexed evidence item(s). It is not a filing artifact.`
+          `Generated ${output.data_mode === "local_private" ? "private" : "synthetic"} Tax Proof Pack ${output.integrity.canonical_payload_hash.slice(0, 12)}\u2026 with ${output.evidence_index.length} indexed evidence item(s). It is not a filing artifact.`
         );
       } catch (error2) {
         return actionableError(
