@@ -34,7 +34,13 @@ Use $verify-tax-return on the bundled build_week_demo fixture set. First normali
 When Codex pauses, respond:
 
 ```text
-For this synthetic demo, confirm salary income at INR 1,840,000. Continue with the supported resident-individual profile, compare both regimes, and generate the Tax Proof Pack. Do not calculate a refund or balance due, and do not file anything.
+For this synthetic demo, confirm salary income at INR 1,840,000. Continue with the supported resident-individual profile and compare both regimes. Do not calculate a refund or balance due, and do not file anything. Show me the final evidence and calculation summary before generating a Tax Proof Pack.
+```
+
+After reviewing that final summary, respond:
+
+```text
+I explicitly approve this final synthetic evidence and calculation summary. Generate the Tax Proof Pack. This approval is not permission to file anything.
 ```
 
 Expected checkpoints:
@@ -49,8 +55,9 @@ Expected checkpoints:
    - new-regime total tax including cess: INR 172,328;
    - old-regime total tax including cess: INR 378,612;
    - estimated difference: INR 206,284, with the new regime lower.
-5. The proof pack includes an evidence index, the user-confirmed reconciliation, both calculations, zero unresolved income actions, and a SHA-256 integrity hash.
-6. The response repeats the product boundary: no filing, no tax advice, no payable/refund result, and no use of the observed TDS records in calculation.
+5. Proof-pack generation pauses for a distinct final approval after calculation.
+6. The proof pack includes an evidence index, the user-confirmed reconciliation, both calculations, zero unresolved income actions, and a SHA-256 integrity hash.
+7. The response repeats the product boundary: no filing, no tax advice, no payable/refund result, and no use of the observed TDS records in calculation.
 
 ## Evidence viewer
 
@@ -132,6 +139,9 @@ The tool rejects unresolved evidence and unsupported profiles. Output contains `
 
 Purpose: bundle the exact evidence, confirmed reconciliation, supported profile, and deterministic comparison into one integrity-protected artifact.
 
+`user_confirmed` must be literal `true` and may be supplied only after the user
+separately approves the final evidence and calculation summary.
+
 Conceptual input:
 
 ```json
@@ -139,7 +149,8 @@ Conceptual input:
   "dataset": { "...": "NormalizedDataset" },
   "reconciliation": { "...": "ready ReconciliationResult" },
   "profile": { "...": "supported TaxpayerProfile" },
-  "calculation": { "...": "RegimeComparison" }
+  "calculation": { "...": "RegimeComparison" },
+  "user_confirmed": true
 }
 ```
 
@@ -179,7 +190,7 @@ If using an MCP evaluation harness, launch the compiled stdio server with the re
 - No filing or external write tool exists.
 - Structured tool outputs preserve provenance and repeat disclaimers.
 - GPT‑5.6 may choose tools and explain results; deterministic code owns all arithmetic.
-- Human confirmation is required before any conflicting amount enters calculation.
+- Human confirmation is required before any conflicting amount enters calculation, and a separate final confirmation is required before proof-pack generation.
 
 ## Troubleshooting
 

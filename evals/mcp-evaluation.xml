@@ -37,7 +37,7 @@
     <answer>206284</answer>
   </qa_pair>
   <qa_pair>
-    <question>Complete the read-only build_week_demo flow through lazytax_generate_tax_proof_pack after confirming salary at INR 1,840,000. Which integrity algorithm does the generated proof pack declare? Answer with the exact algorithm label only.</question>
+    <question>Complete the read-only build_week_demo flow through lazytax_generate_tax_proof_pack after confirming salary at INR 1,840,000 and explicitly setting the final proof-pack user confirmation to true. Which integrity algorithm does the generated proof pack declare? Answer with the exact algorithm label only.</question>
     <answer>SHA-256</answer>
   </qa_pair>
 </evaluation>

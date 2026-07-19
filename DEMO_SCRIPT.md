@@ -44,11 +44,11 @@ Target recording length: **2:48**, leaving seven seconds of safety below the thr
 
 ## 1:49–2:10 — Proof, not a black box
 
-**On screen:** Open the evidence viewer. Click Evidence, Calculation, then Audit trail.
+**On screen:** Show the final-summary approval pause, approve the synthetic summary, then open the evidence viewer. Click Evidence, Calculation, then Audit trail.
 
 **Voiceover:**
 
-> Every material number links back to a document and stable line ID. The Tax Proof Pack carries the evidence index, the user-confirmed resolution, both calculations, assumptions, and a SHA-256 integrity hash.
+> After a second, explicit approval of the final summary, LazyTax creates the proof pack. Every material number links to evidence or a calculation step, alongside the user-confirmed resolution, assumptions, and a SHA-256 integrity hash.
 
 ## 2:10–2:30 — Honest boundary and privacy
 

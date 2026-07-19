@@ -23,6 +23,10 @@ test("server exposes four focused tools and completes the bundled proof-pack wor
     for (const tool of listed.tools) {
       assert.equal(tool.annotations?.readOnlyHint, true);
       assert.equal(tool.annotations?.destructiveHint, false);
+      assert.equal(
+        tool.annotations?.idempotentHint,
+        tool.name === "lazytax_generate_tax_proof_pack" ? false : true
+      );
       assert.ok(tool.outputSchema);
     }
 
@@ -112,6 +116,7 @@ test("server exposes four focused tools and completes the bundled proof-pack wor
         dataset,
         reconciliation: resolved.structuredContent as Record<string, unknown>,
         calculation: calculated.structuredContent as Record<string, unknown>,
+        user_confirmed: true,
         response_format: "json"
       }
     });

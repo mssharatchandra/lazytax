@@ -1,0 +1,43 @@
+{
+  "schema_version": "lazytax.fixture.v1",
+  "synthetic": true,
+  "notice": "FICTIONAL DEMO DATA — NOT A BROKER STATEMENT, NOT TAX ADVICE, AND NOT VALID FOR FILING.",
+  "document_id": "BROKER-SYN-001",
+  "document_type": "broker_pnl_like",
+  "tax_year": "FY2025-26",
+  "assessment_year": "AY2026-27",
+  "taxpayer_ref": "SYNTH-TAXPAYER-001",
+  "taxpayer_display_name": "Asha Demo (fictional)",
+  "issuer": "Example Broker Private Limited (fictional)",
+  "currency": "INR",
+  "records": [
+    {
+      "source_id": "BROKER-SYN-001:BRK-L05",
+      "line_id": "BRK-L05",
+      "category": "capital_gains",
+      "subtype": "listed_equity_sale_proceeds",
+      "description": "Aggregate sale proceeds for short-term listed-equity disposals",
+      "amount_inr": 300000,
+      "match_key": "equity-sales:synthetic-account:fy2025-26"
+    },
+    {
+      "source_id": "BROKER-SYN-001:BRK-L06",
+      "line_id": "BRK-L06",
+      "category": "capital_gains",
+      "subtype": "listed_equity_cost_basis",
+      "description": "Aggregate cost basis for the same disposals",
+      "amount_inr": 255000,
+      "match_key": "equity-cost:synthetic-account:fy2025-26"
+    },
+    {
+      "source_id": "BROKER-SYN-001:BRK-L07",
+      "line_id": "BRK-L07",
+      "category": "capital_gains",
+      "subtype": "section_111a_short_term_gain",
+      "description": "Short-term gain derived as sale proceeds less cost basis",
+      "amount_inr": 45000,
+      "calculation": "300000 - 255000",
+      "match_key": "equity-stcg:synthetic-account:fy2025-26"
+    }
+  ]
+}

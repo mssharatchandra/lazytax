@@ -99,7 +99,9 @@ See [JUDGE_GUIDE.md](JUDGE_GUIDE.md) for the complete judge path and
 | `lazytax_calculate_compare_regimes` | Deterministically calculate the supported old/new-regime estimates |
 | `lazytax_generate_tax_proof_pack` | Generate the structured evidence and calculation artifact |
 
-All four tools are read-only, non-destructive and idempotent. The local stdio
+All four tools are read-only and non-destructive. Normalization, reconciliation
+and calculation are idempotent; proof-pack generation is timestamped and
+therefore marked non-idempotent despite having no side effects. The local stdio
 server logs only failures to stderr.
 
 ## Development commands
@@ -109,6 +111,7 @@ npm install       # install workspace dependencies
 npm run build     # strict TypeScript build: core -> engine -> MCP
 npm test          # schema, golden-engine and MCP smoke tests
 npm run check     # build + all tests
+npm run smoke:plugin # real stdio handshake through the plugin launcher
 npm run mcp       # start the stdio server (normally launched by the plugin)
 ```
 
@@ -174,6 +177,7 @@ plugins/lazytax/      installable bundle, skill, launcher and MCP config
 packages/core/        strict schemas and shared contracts
 packages/engine/      deterministic normalization/reconciliation/tax/proof logic
 packages/mcp/         modern TypeScript MCP server and four focused tools
+scripts/              plugin bundler and real stdio smoke test
 fixtures/             three fictional source documents
 evals/                stable read-only evaluation questions
 viewer/               static evidence/proof viewer

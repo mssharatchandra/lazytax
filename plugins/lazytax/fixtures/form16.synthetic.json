@@ -1,0 +1,51 @@
+{
+  "schema_version": "lazytax.fixture.v1",
+  "synthetic": true,
+  "notice": "FICTIONAL DEMO DATA — NOT A GOVERNMENT FORM, NOT TAX ADVICE, AND NOT VALID FOR FILING.",
+  "document_id": "FORM16-SYN-001",
+  "document_type": "form16_like",
+  "tax_year": "FY2025-26",
+  "assessment_year": "AY2026-27",
+  "taxpayer_ref": "SYNTH-TAXPAYER-001",
+  "taxpayer_display_name": "Asha Demo (fictional)",
+  "issuer": "Example Employer Private Limited (fictional)",
+  "currency": "INR",
+  "records": [
+    {
+      "source_id": "FORM16-SYN-001:F16-L05",
+      "line_id": "F16-L05",
+      "category": "salary",
+      "subtype": "gross_salary",
+      "description": "Gross salary reported by employer",
+      "amount_inr": 1800000,
+      "match_key": "salary:example-employer:fy2025-26"
+    },
+    {
+      "source_id": "FORM16-SYN-001:F16-L06",
+      "line_id": "F16-L06",
+      "category": "deduction",
+      "subtype": "standard_deduction_new_regime",
+      "description": "Standard deduction used in the employer statement",
+      "amount_inr": 75000,
+      "match_key": "deduction:standard:new:fy2025-26"
+    },
+    {
+      "source_id": "FORM16-SYN-001:F16-L07",
+      "line_id": "F16-L07",
+      "category": "salary",
+      "subtype": "taxable_salary",
+      "description": "Taxable salary after the standard deduction",
+      "amount_inr": 1725000,
+      "match_key": "salary-taxable:example-employer:fy2025-26"
+    },
+    {
+      "source_id": "FORM16-SYN-001:F16-L08",
+      "line_id": "F16-L08",
+      "category": "tax_credit",
+      "subtype": "salary_tds",
+      "description": "Tax deducted at source reported by employer",
+      "amount_inr": 140000,
+      "match_key": "tds:example-employer:fy2025-26"
+    }
+  ]
+}

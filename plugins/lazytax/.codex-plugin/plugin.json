@@ -1,6 +1,6 @@
 {
   "name": "lazytax",
-  "version": "0.1.0",
+  "version": "0.1.0+codex.20260719123917",
   "description": "Evidence-first verification for synthetic Indian tax returns, powered by deterministic local tools.",
   "author": {
     "name": "Sharat Chandra MS",
@@ -9,7 +9,13 @@
   "homepage": "https://github.com/mssharatchandra/lazytax",
   "repository": "https://github.com/mssharatchandra/lazytax",
   "license": "MIT",
-  "keywords": ["tax", "india", "verification", "provenance", "mcp"],
+  "keywords": [
+    "tax",
+    "india",
+    "verification",
+    "provenance",
+    "mcp"
+  ],
   "skills": "./skills/",
   "interface": {
     "displayName": "LazyTax",
@@ -17,7 +23,10 @@
     "longDescription": "LazyTax turns Codex into an evidence-first tax verification workspace for a narrowly supported synthetic Indian taxpayer profile. It reconciles source records, delegates every numeric result to deterministic local tools, records confirmations, and generates a Tax Proof Pack without filing anything.",
     "developerName": "Sharat Chandra MS",
     "category": "Productivity",
-    "capabilities": ["Interactive", "Read", "Write"],
+    "capabilities": [
+      "Interactive",
+      "Read"
+    ],
     "websiteURL": "https://github.com/mssharatchandra/lazytax",
     "defaultPrompt": [
       "Verify these synthetic tax documents and show every discrepancy.",

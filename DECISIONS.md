@@ -25,3 +25,4 @@
 - End-to-end public-tool smoke passes: 3 fixtures → 5 supported evidence records + 7 warnings → unresolved ₹40,000 salary spread → explicit ₹18,40,000 confirmation → ₹1,72,328 new-regime estimate / ₹3,78,612 old-regime estimate → SHA-256 Tax Proof Pack.
 - Plugin and skill validators pass; real stdio handshake through the plugin launcher exposes exactly the four documented tools. Root `npm run check` passes.
 - Remaining human-owned release items: record/upload the public video, capture the `/feedback` session ID, choose public/private repository submission path, and complete the Devpost form.
+- Installation testing found and fixed a cache-boundary issue: Codex copies plugins into its cache, so the bundle can no longer depend on repository-relative packages. `npm run build` now embeds the MCP server and three fixtures inside the plugin; a real stdio smoke test passes from the installed cache path.

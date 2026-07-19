@@ -13,13 +13,19 @@ The implementation is demonstration software, not tax or legal advice and not a 
 
 ## Repository integration
 
-The local marketplace entry is in `.agents/plugins/marketplace.json` at the repository root. The MCP launcher expects the compiled server at:
+The local marketplace entry is in `.agents/plugins/marketplace.json` at the
+repository root. The repository build creates a self-contained server bundle
+and copies the three synthetic fixtures into the plugin at:
 
 ```text
-packages/mcp/dist/index.js
+plugins/lazytax/mcp-server/index.mjs
+plugins/lazytax/fixtures/
 ```
 
-Alternatively, set `LAZYTAX_MCP_ENTRY` to the absolute path of a compatible built server entry point.
+That bundle continues to work after Codex copies the plugin into its install
+cache. During source development the launcher can also fall back to
+`packages/mcp/dist/index.js`; `LAZYTAX_MCP_ENTRY` remains available as an
+explicit development override.
 
 ## Install for judging
 

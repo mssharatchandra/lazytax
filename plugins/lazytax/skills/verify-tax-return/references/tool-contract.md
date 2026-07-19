@@ -22,7 +22,9 @@ Expected output: AY 2026-27 rule-set version, calculation trace, both supported 
 
 ## `lazytax_generate_tax_proof_pack`
 
-Input: normalized evidence, reconciliation output, calculation output, explicit final confirmation, and any unresolved or unsupported items.
+Input: normalized evidence, reconciliation output, calculation output,
+`user_confirmed: true` after a distinct final approval, and any unresolved or
+unsupported items.
 
 Expected output: an artifact path or content, generation timestamp, included sections, and remaining warnings. It must describe verification/preparation only and must never report filing, government validation, acknowledgement, or professional certification.
 

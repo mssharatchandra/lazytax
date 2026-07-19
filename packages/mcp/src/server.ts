@@ -31,6 +31,11 @@ const READ_ONLY_ANNOTATIONS = {
   openWorldHint: false
 } as const;
 
+const READ_ONLY_TIMESTAMPED_ANNOTATIONS = {
+  ...READ_ONLY_ANNOTATIONS,
+  idempotentHint: false
+} as const;
+
 const ConfirmationSchema = z
   .object({
     salary: z.number().int().nonnegative().max(50_000_000).optional(),
@@ -50,6 +55,7 @@ const BUILD_WEEK_FIXTURE_FILES = [
 async function loadBuildWeekFixtures(): Promise<z.infer<typeof FixtureDocumentInputSchema>[]> {
   const candidates = [
     resolve(process.cwd(), "fixtures"),
+    fileURLToPath(new URL("../fixtures/", import.meta.url)),
     fileURLToPath(new URL("../../../fixtures/", import.meta.url))
   ].filter((value, index, all) => all.indexOf(value) === index);
   const failures: string[] = [];
@@ -240,14 +246,20 @@ export function createLazyTaxServer(): McpServer {
           dataset: NormalizedDatasetSchema,
           reconciliation: ReconciliationResultSchema,
           calculation: RegimeComparisonSchema,
+          user_confirmed: z
+            .literal(true)
+            .describe("Set true only after the user explicitly approved the final evidence and calculation summary."),
           response_format: ResponseFormatSchema
         })
         .strict(),
       outputSchema: TaxProofPackSchema,
-      annotations: READ_ONLY_ANNOTATIONS
+      annotations: READ_ONLY_TIMESTAMPED_ANNOTATIONS
     },
-    async ({ profile, dataset, reconciliation, calculation, response_format }) => {
+    async ({ profile, dataset, reconciliation, calculation, user_confirmed, response_format }) => {
       try {
+        if (user_confirmed !== true) {
+          throw new Error("Explicit final user confirmation is required before proof-pack generation.");
+        }
         const output = generateTaxProofPack({ profile, dataset, reconciliation, calculation });
         return textResult(
           output,

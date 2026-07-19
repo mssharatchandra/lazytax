@@ -3,18 +3,22 @@ import { spawn } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
 const configuredEntry = process.env.LAZYTAX_MCP_ENTRY;
+const bundledEntry = fileURLToPath(
+  new URL("../mcp-server/index.mjs", import.meta.url),
+);
 const repositoryEntry = fileURLToPath(
   new URL("../../../packages/mcp/dist/index.js", import.meta.url),
 );
-const candidates = [configuredEntry, repositoryEntry].filter(Boolean);
+const candidates = [configuredEntry, bundledEntry, repositoryEntry].filter(Boolean);
 const entry = candidates.find((candidate) => existsSync(candidate));
 
 if (!entry) {
   process.stderr.write(
     [
       "LazyTax MCP server is not built.",
+      `Expected installed plugin bundle at: ${bundledEntry}`,
       `Expected repository build output at: ${repositoryEntry}`,
-      "Build packages/mcp, or set LAZYTAX_MCP_ENTRY to its absolute dist/index.js path.",
+      "Run npm run build from the repository, or set LAZYTAX_MCP_ENTRY to an absolute compatible entry path.",
       "No tax calculation or verification was attempted.",
     ].join("\n") + "\n",
   );
