@@ -13,11 +13,14 @@ import {
   RegimeComparisonSchema,
   SyntheticFixtureDocumentSchema,
   TaxProofPackSchema,
-  TaxpayerProfileSchema
+  TaxpayerProfileSchema,
+  UsStockComputationInputSchema,
+  UsStockComputationResultSchema
 } from "@lazytax/core";
 import {
   UnsupportedTaxProfileError,
   compareTaxRegimes,
+  computeUsStockInvestments,
   generateTaxProofPack,
   normalizeFixtureData,
   reconcileEvidence,
@@ -54,7 +57,9 @@ const ConfirmationSchema = z
     employer_tds: z.number().int().nonnegative().max(50_000_000).optional(),
     foreign_tax_withheld: z.number().int().nonnegative().max(50_000_000).optional(),
     foreign_capital_gains: z.number().int().nonnegative().max(50_000_000).optional(),
-    other_foreign_income: z.number().int().nonnegative().max(50_000_000).optional()
+    other_foreign_income: z.number().int().nonnegative().max(50_000_000).optional(),
+    foreign_stock_stcg: z.number().int().nonnegative().max(50_000_000).optional(),
+    foreign_stock_ltcg: z.number().int().nonnegative().max(50_000_000).optional()
   })
   .strict();
 
@@ -210,6 +215,33 @@ export function createLazyTaxServer(): McpServer {
         return actionableError(
           error,
           "Use only the exact documents the user authorized, keep one FY2025-26 taxpayer per request, and exclude secrets or non-tax personal fields."
+        );
+      }
+    }
+  );
+
+  server.registerTool(
+    "lazytax_compute_us_stock_investments",
+    {
+      title: "Compute US Stock Investment Tax Facts",
+      description:
+        "Deterministically match ordinary US common-stock investment trades using FIFO, use documented INR acquisition costs, validate prior-month-end SBI TT buying-rate dates for sales, classify gains as short-term normal-rate or long-term section 112, prepare masked Schedule CG/FSI/FA facts, and emit source-bound bridge entries for the private tax workflow. Supports USD investment trades for an Indian ROR individual in FY2025-26 only. It rejects missing lots or cost/rate evidence, incorrect FX dates, RSUs/ESPPs/options, shorts, derivatives, corporate actions, foreign capital-gains tax, and loss cases requiring cross-asset set-off. It never files a return or fetches exchange rates.",
+      inputSchema: UsStockComputationInputSchema,
+      outputSchema: UsStockComputationResultSchema,
+      annotations: READ_ONLY_ANNOTATIONS
+    },
+    async (input) => {
+      try {
+        const output = computeUsStockInvestments(input);
+        return textResult(
+          output,
+          "summary",
+          `Matched ${output.matched_lots.length} US-stock lot(s), retained ${output.open_lots.length} open lot(s), and produced ${output.tax_bridge_entries.length} tax bridge entr${output.tax_bridge_entries.length === 1 ? "y" : "ies"}. ${output.ready_for_supported_tax_calculation ? "The supported gain result is ready for private tax reconciliation." : "Loss/set-off review is required before tax calculation."}`
+        );
+      } catch (error) {
+        return actionableError(
+          error,
+          "Provide complete FIFO acquisition history with documented INR costs, exact broker source references, verified prior-month-end SBI TT buying rates for FY2025-26 sales, and calendar-2025 Schedule FA rows for ordinary USD common-stock investments."
         );
       }
     }

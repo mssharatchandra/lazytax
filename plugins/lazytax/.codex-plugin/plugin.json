@@ -1,7 +1,7 @@
 {
   "name": "lazytax",
-  "version": "0.1.0+codex.20260719144402",
-  "description": "Private, evidence-first Indian tax verification with deterministic local tools.",
+  "version": "0.1.0+codex.20260719153919",
+  "description": "Private Indian tax verification with deterministic domestic and US-stock tools.",
   "author": {
     "name": "Sharat Chandra MS",
     "url": "https://github.com/mssharatchandra"
@@ -20,7 +20,7 @@
   "interface": {
     "displayName": "LazyTax",
     "shortDescription": "Verify an Indian tax return with source-linked evidence.",
-    "longDescription": "LazyTax turns Codex into an evidence-first Indian tax verification workspace. It supports a synthetic judge sandbox and an explicitly authorized private-document mode, masks identifiers in tool outputs, reconciles source records, delegates supported numeric results to deterministic local tools, and generates a Tax Proof Pack without filing anything.",
+    "longDescription": "LazyTax turns Codex into an evidence-first Indian tax verification workspace. It supports a synthetic judge sandbox and private-document mode, masks identifiers, reconciles source records, deterministically handles supported domestic income plus ordinary US common-stock FIFO gains and foreign disclosures, and generates a Tax Proof Pack without filing anything.",
     "developerName": "Sharat Chandra MS",
     "category": "Productivity",
     "capabilities": [
@@ -32,6 +32,7 @@
       "Privately verify these tax documents, mask identifiers, and show every discrepancy.",
       "Run the bundled synthetic judge workflow without guessing through conflicts.",
       "Compare both tax regimes and cite the evidence for every number.",
+      "Reconcile my US-stock trades and prepare Schedule CG, FSI, TR and FA evidence.",
       "Generate a Tax Proof Pack after I approve all resolutions."
     ]
   },

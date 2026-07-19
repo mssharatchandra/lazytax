@@ -6,6 +6,7 @@ LazyTax is a Build Week MVP for private, evidence-first Indian tax verification.
 
 - AY 2026-27 resident salaried individual.
 - Delivery-based domestic listed-equity transactions accepted by the deterministic engine.
+- Ordinary USD US common-stock investments accepted by the FIFO/FX evidence engine, excluding losses, employee equity, derivatives and corporate actions.
 - Two isolated modes: synthetic judge fixtures and explicitly authorized private taxpayer documents.
 - Private mode masks identifiers in deterministic outputs, retains no raw document text, and makes no network calls from the LazyTax MCP process.
 - Evidence inventory, reconciliation, deterministic regime comparison/calculation, and Tax Proof Pack.

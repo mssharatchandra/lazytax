@@ -27,6 +27,9 @@ import {
   type TaxpayerProfile,
   TaxpayerProfileSchema
 } from "@lazytax/core";
+import { US_STOCK_RULE_SOURCES } from "./us-stocks.js";
+
+export * from "./us-stocks.js";
 
 export const OFFICIAL_RULE_SOURCES = [
   "https://www.incometax.gov.in/iec/foportal/help/individual/return-applicable-1",
@@ -119,7 +122,7 @@ function assertNormalizedDatasetIntegrity(dataset: NormalizedDataset): void {
         !/^line_[a-f0-9]{16}$/.test(item.entry_id) ||
         !/^line_[a-f0-9]{16}$/.test(item.locator) ||
         !/^Private (?:form16|ais|broker_report|other) evidence$/.test(item.document_name) ||
-        !/^Private (?:salary|interest|dividend|foreign_dividend|listed_equity_stcg|listed_equity_ltcg|employer_tds|foreign_tax_withheld|foreign_capital_gains|other_foreign_income) evidence$/.test(
+        !/^Private (?:salary|interest|dividend|foreign_dividend|listed_equity_stcg|listed_equity_ltcg|employer_tds|foreign_tax_withheld|foreign_capital_gains|other_foreign_income|foreign_stock_stcg|foreign_stock_ltcg) evidence$/.test(
           item.label
         ) ||
         item.notes !== undefined)
@@ -397,7 +400,9 @@ const CATEGORY_ORDER: readonly IncomeCategory[] = [
   "employer_tds",
   "foreign_tax_withheld",
   "foreign_capital_gains",
-  "other_foreign_income"
+  "other_foreign_income",
+  "foreign_stock_stcg",
+  "foreign_stock_ltcg"
 ];
 
 function aggregateSources(items: readonly EvidenceItem[]): SourceTotal[] {
@@ -534,7 +539,9 @@ export function taxInputsFromReconciliation(resultInput: ReconciliationResult): 
     ...optionalAmount("employer_tds", "employer_tds_inr"),
     ...optionalAmount("foreign_tax_withheld", "foreign_tax_withheld_inr"),
     ...optionalAmount("foreign_capital_gains", "foreign_capital_gains_inr"),
-    ...optionalAmount("other_foreign_income", "other_foreign_income_inr")
+    ...optionalAmount("other_foreign_income", "other_foreign_income_inr"),
+    ...optionalAmount("foreign_stock_stcg", "foreign_stock_stcg_inr"),
+    ...optionalAmount("foreign_stock_ltcg", "foreign_stock_ltcg_inr")
   });
 }
 
@@ -579,6 +586,8 @@ type NormalizedTaxInputs = TaxInputs & {
   foreign_tax_withheld_inr: number;
   foreign_capital_gains_inr: number;
   other_foreign_income_inr: number;
+  foreign_stock_stcg_inr: number;
+  foreign_stock_ltcg_inr: number;
 };
 
 function assertSupported(
@@ -597,7 +606,9 @@ function assertSupported(
     employer_tds_inr: parsedInputs.employer_tds_inr ?? 0,
     foreign_tax_withheld_inr: parsedInputs.foreign_tax_withheld_inr ?? 0,
     foreign_capital_gains_inr: parsedInputs.foreign_capital_gains_inr ?? 0,
-    other_foreign_income_inr: parsedInputs.other_foreign_income_inr ?? 0
+    other_foreign_income_inr: parsedInputs.other_foreign_income_inr ?? 0,
+    foreign_stock_stcg_inr: parsedInputs.foreign_stock_stcg_inr ?? 0,
+    foreign_stock_ltcg_inr: parsedInputs.foreign_stock_ltcg_inr ?? 0
   };
   if (inputs.salary_inr === 0) {
     throw new UnsupportedTaxProfileError(
@@ -607,49 +618,69 @@ function assertSupported(
   if (
     inputs.foreign_capital_gains_inr > 0 ||
     inputs.other_foreign_income_inr > 0 ||
-    profile.has_foreign_capital_gains === true ||
     profile.has_other_foreign_income === true ||
-    profile.has_foreign_assets_beyond_dividend_source === true
+    profile.has_unsupported_foreign_assets === true
   ) {
     throw new UnsupportedTaxProfileError(
-      "This MVP supports foreign dividends only. Foreign capital gains, other foreign income, and additional foreign assets must be reviewed outside this deterministic profile."
+      "Foreign capital gains supplied as an unstructured total, other foreign income, and unsupported foreign assets are outside this path. Use the dedicated US-stock tool for supported US common-stock gains."
     );
   }
-  const hasForeignDividendCase =
-    inputs.foreign_dividend_inr > 0 || inputs.foreign_tax_withheld_inr > 0;
-  if (hasForeignDividendCase) {
+  const hasForeignDividendCase = inputs.foreign_dividend_inr > 0 || inputs.foreign_tax_withheld_inr > 0;
+  const hasUsStockGainCase = inputs.foreign_stock_stcg_inr > 0 || inputs.foreign_stock_ltcg_inr > 0;
+  const hasSupportedForeignCase = hasForeignDividendCase || hasUsStockGainCase;
+  if (hasSupportedForeignCase) {
     if (dataMode !== "local_private") {
       throw new UnsupportedTaxProfileError(
-        "Foreign dividend and foreign-tax-credit calculations are available only in local_private mode."
+        "Foreign dividend, foreign-tax-credit, and US-stock calculations are available only in local_private mode."
       );
     }
     if (!profile.has_foreign_income_or_assets) {
       throw new UnsupportedTaxProfileError(
-        "The taxpayer profile must explicitly declare foreign income or assets for a foreign-dividend calculation."
+        "The taxpayer profile must explicitly declare foreign income or assets for a supported foreign calculation."
       );
     }
     if (profile.is_resident_and_ordinarily_resident === false) {
       throw new UnsupportedTaxProfileError(
-        "This foreign-dividend profile does not support a taxpayer who is explicitly not Resident and Ordinarily Resident (ROR)."
+        "This supported foreign-income profile does not support a taxpayer who is explicitly not Resident and Ordinarily Resident (ROR)."
+      );
+    }
+    if (profile.has_other_foreign_income !== false) {
+      throw new UnsupportedTaxProfileError(
+        "Confirm that other foreign income and unsupported foreign assets are absent before using this profile."
+      );
+    }
+    if (hasUsStockGainCase && profile.has_unsupported_foreign_assets !== false) {
+      throw new UnsupportedTaxProfileError(
+        "Explicitly confirm that no unsupported foreign assets or transactions exist before using US-stock gain inputs."
       );
     }
     if (
-      profile.has_foreign_capital_gains !== false ||
-      profile.has_other_foreign_income !== false ||
+      hasForeignDividendCase &&
+      !hasUsStockGainCase &&
       profile.has_foreign_assets_beyond_dividend_source !== false
     ) {
       throw new UnsupportedTaxProfileError(
-        "Confirm that foreign capital gains, other foreign income, and foreign assets beyond the dividend source are all absent before using this narrow profile."
+        "Confirm that foreign assets beyond the dividend source are absent before using the dividend-only profile."
       );
     }
-    if (inputs.foreign_dividend_inr === 0) {
+    if (hasForeignDividendCase && inputs.foreign_dividend_inr === 0) {
       throw new UnsupportedTaxProfileError(
         "Foreign tax withheld cannot be credited without a positive foreign dividend included in Indian taxable income."
       );
     }
+    if (hasUsStockGainCase && profile.has_foreign_capital_gains !== true) {
+      throw new UnsupportedTaxProfileError(
+        "The taxpayer profile must explicitly declare foreign capital gains for US-stock gain inputs."
+      );
+    }
+    if (!hasUsStockGainCase && profile.has_foreign_capital_gains === true) {
+      throw new UnsupportedTaxProfileError(
+        "The profile declares foreign capital gains, but no supported US-stock gain entries were supplied."
+      );
+    }
   } else if (profile.has_foreign_income_or_assets) {
     throw new UnsupportedTaxProfileError(
-      "The profile declares foreign income or assets, but this calculation contains no supported foreign dividend."
+      "The profile declares foreign income or assets, but this calculation contains no supported foreign dividend or US-stock gain."
     );
   }
   const taxableLtcg = Math.max(0, inputs.listed_equity_ltcg_inr - 125_000);
@@ -659,7 +690,9 @@ function assertSupported(
     inputs.dividend_inr +
     inputs.foreign_dividend_inr +
     inputs.listed_equity_stcg_inr +
-    taxableLtcg;
+    taxableLtcg +
+    inputs.foreign_stock_stcg_inr +
+    inputs.foreign_stock_ltcg_inr;
   if (conservativeMaximum > 5_000_000) {
     throw new UnsupportedTaxProfileError(
       "This MVP stops at ₹50 lakh because surcharge and marginal-relief calculations are not implemented. Use a supported synthetic fixture below that threshold."
@@ -678,10 +711,14 @@ interface GrossTaxCalculation {
   readonly normalIncome: number;
   readonly taxableStcg: number;
   readonly taxableLtcg: number;
+  readonly foreignStockStcg: number;
+  readonly foreignStockLtcg: number;
   readonly totalTaxableIncome: number;
   readonly calculatedSlabTax: number;
   readonly stcgTax: number;
   readonly ltcgTax: number;
+  readonly foreignStockStcgTax: number;
+  readonly foreignStockLtcgTax: number;
   readonly rebate: number;
   readonly taxBeforeCess: number;
   readonly cess: number;
@@ -699,31 +736,46 @@ function calculateGrossTax(
       standardDeduction +
       inputs.interest_inr +
       inputs.dividend_inr +
-      inputs.foreign_dividend_inr
+      inputs.foreign_dividend_inr +
+      inputs.foreign_stock_stcg_inr
   );
   const taxableStcg = inputs.listed_equity_stcg_inr;
   const taxableLtcg = Math.max(0, inputs.listed_equity_ltcg_inr - 125_000);
-  const totalTaxableIncome = normalIncome + taxableStcg + taxableLtcg;
+  const foreignStockStcg = inputs.foreign_stock_stcg_inr;
+  const foreignStockLtcg = inputs.foreign_stock_ltcg_inr;
+  const totalTaxableIncome =
+    normalIncome + taxableStcg + taxableLtcg + foreignStockLtcg;
   const calculatedSlabTax = slabTax(normalIncome, regime === "new" ? NEW_SLABS : OLD_SLABS);
   const stcgTax = taxableStcg * 0.2;
   const ltcgTax = taxableLtcg * 0.125;
+  const foreignStockStcgTax = Math.max(
+    0,
+    calculatedSlabTax -
+      slabTax(normalIncome - foreignStockStcg, regime === "new" ? NEW_SLABS : OLD_SLABS)
+  );
+  const foreignStockLtcgTax = foreignStockLtcg * 0.125;
   const rebate =
     regime === "new" && totalTaxableIncome <= 1_200_000
       ? Math.min(60_000, calculatedSlabTax)
       : regime === "old" && totalTaxableIncome <= 500_000
         ? Math.min(12_500, calculatedSlabTax)
         : 0;
-  const taxBeforeCess = calculatedSlabTax - rebate + stcgTax + ltcgTax;
+  const taxBeforeCess =
+    calculatedSlabTax - rebate + stcgTax + ltcgTax + foreignStockLtcgTax;
   const cess = taxBeforeCess * 0.04;
   return {
     standardDeduction,
     normalIncome,
     taxableStcg,
     taxableLtcg,
+    foreignStockStcg,
+    foreignStockLtcg,
     totalTaxableIncome,
     calculatedSlabTax,
     stcgTax,
     ltcgTax,
+    foreignStockStcgTax,
+    foreignStockLtcgTax,
     rebate,
     taxBeforeCess,
     cess,
@@ -755,12 +807,23 @@ function calculateRegime(
     netTaxAfterCredits > 0 ? roundToNearestTen(netTaxAfterCredits) : 0;
   const estimatedRefund = netTaxAfterCredits < 0 ? roundToNearestTen(-netTaxAfterCredits) : 0;
   const hasForeignDividend = inputs.foreign_dividend_inr > 0;
-  const warnings = hasForeignDividend
+  const hasUsStockGains = inputs.foreign_stock_stcg_inr > 0 || inputs.foreign_stock_ltcg_inr > 0;
+  const hasSupportedForeignIncome = hasForeignDividend || hasUsStockGains;
+  const warnings = hasSupportedForeignIncome
     ? [
         profile.is_resident_and_ordinarily_resident === true
           ? "The profile records ROR confirmation, but residential status must still be re-checked before filing."
-          : "ROR status has not been confirmed. This estimate is conditional; confirm Resident and Ordinarily Resident status before relying on foreign-dividend treatment.",
-        "Any FTC estimate is conditional on eligible, undisputed foreign tax, INR conversion, supporting evidence, Schedule FSI/TR disclosures, and timely Form 67 compliance.",
+          : "ROR status has not been confirmed. This estimate is conditional; confirm Resident and Ordinarily Resident status before relying on foreign-income treatment.",
+        ...(hasForeignDividend
+          ? [
+              "Any FTC estimate is conditional on eligible, undisputed foreign tax, INR conversion, supporting evidence, Schedule FSI/TR disclosures, and timely Form 67 compliance."
+            ]
+          : []),
+        ...(hasUsStockGains
+          ? [
+              "US-stock STCG is included at normal slab rates and US-stock LTCG is estimated under section 112 at 12.5%; confirm documented INR acquisition costs, prior-month-end SBI TT sale rates, lot classification, Schedule CG/FSI/FA, and absence of unsupported corporate actions before filing."
+            ]
+          : []),
         ...(inputs.foreign_tax_withheld_inr > foreignTaxCredit
           ? [
               `₹${rupee(inputs.foreign_tax_withheld_inr - foreignTaxCredit).toLocaleString("en-IN")} of reported foreign tax withheld is not included in this conservative FTC estimate.`
@@ -774,10 +837,14 @@ function calculateRegime(
     normal_rate_income_inr: rupee(gross.normalIncome),
     taxable_stcg_inr: rupee(gross.taxableStcg),
     taxable_ltcg_inr: rupee(gross.taxableLtcg),
+    foreign_stock_stcg_inr: rupee(gross.foreignStockStcg),
+    foreign_stock_ltcg_inr: rupee(gross.foreignStockLtcg),
     total_taxable_income_inr: rupee(gross.totalTaxableIncome),
     slab_tax_inr: rupee(gross.calculatedSlabTax),
     stcg_tax_inr: rupee(gross.stcgTax),
     ltcg_tax_inr: rupee(gross.ltcgTax),
+    foreign_stock_stcg_tax_inr: rupee(gross.foreignStockStcgTax),
+    foreign_stock_ltcg_tax_inr: rupee(gross.foreignStockLtcgTax),
     rebate_87a_inr: rupee(gross.rebate),
     tax_before_cess_inr: rupee(gross.taxBeforeCess),
     health_education_cess_inr: rupee(gross.cess),
@@ -793,19 +860,22 @@ function calculateRegime(
     rounding_unit_inr: 10,
     form67_required_for_ftc_claim: foreignTaxCredit > 0,
     ror_confirmation_required:
-      hasForeignDividend && profile.is_resident_and_ordinarily_resident !== true,
+      hasSupportedForeignIncome && profile.is_resident_and_ordinarily_resident !== true,
     effective_rate_percent:
       gross.totalTaxableIncome === 0
         ? 0
         : Math.round((gross.totalTax / gross.totalTaxableIncome) * 10_000) / 100,
     assumptions: [
-      hasForeignDividend && profile.is_resident_and_ordinarily_resident === true
-        ? "Resident and Ordinarily Resident individual under age 60 for AY 2026-27; foreign income is limited to dividends, with no foreign capital gains, other foreign income, or additional foreign assets."
-        : hasForeignDividend
-          ? "Conditional resident-individual estimate under age 60 for AY 2026-27; ROR is not yet confirmed, and foreign income is limited to dividends with all other foreign categories explicitly absent."
+      hasSupportedForeignIncome && profile.is_resident_and_ordinarily_resident === true
+        ? "Resident and Ordinarily Resident individual under age 60 for AY 2026-27; foreign income is limited to supported dividends and ordinary US common-stock investment gains."
+        : hasSupportedForeignIncome
+          ? "Conditional resident-individual estimate under age 60 for AY 2026-27; ROR is not yet confirmed, and foreign income is limited to supported dividends and ordinary US common-stock investment gains."
           : "Resident individual under age 60 for AY 2026-27; no business, profession, foreign, house-property, crypto, or other special-rate income.",
       "Only the standard deduction is applied: up to ₹50,000 under old regime and ₹75,000 under new regime.",
       "Section 111A listed-equity STCG is estimated at 20%; section 112A listed-equity LTCG is estimated at 12.5% above the aggregate ₹1,25,000 threshold.",
+      hasUsStockGains
+        ? "US-listed common-stock STCG is included in normal slab-rate income; US-listed common-stock LTCG is estimated at 12.5% under section 112 without the section 112A threshold."
+        : "No US-stock capital gain is included.",
       "Section 87A rebate, when eligible, reduces normal slab-rate tax only; it does not reduce special-rate capital-gains tax.",
       hasForeignDividend
         ? "FTC is conservatively limited to the lower of reported foreign tax withheld and the incremental gross Indian tax produced by the foreign dividend; treaty-specific rates, disputed tax, and carry-forward are not computed."
@@ -813,9 +883,11 @@ function calculateRegime(
       "Health and Education Cess is estimated at 4%. Surcharge, marginal relief above ₹12 lakh, losses, set-off, and interest are outside this MVP; the final balance or refund estimate is rounded to the nearest ₹10."
     ],
     warnings,
-    source_urls: hasForeignDividend
-      ? [...OFFICIAL_RULE_SOURCES, ...FOREIGN_TAX_CREDIT_SOURCES]
-      : [...OFFICIAL_RULE_SOURCES],
+    source_urls: [
+      ...OFFICIAL_RULE_SOURCES,
+      ...(hasForeignDividend ? FOREIGN_TAX_CREDIT_SOURCES : []),
+      ...(hasUsStockGains ? US_STOCK_RULE_SOURCES : [])
+    ],
     disclaimer: disclaimerFor(dataMode)
   };
 }

@@ -17,7 +17,7 @@ All conditions must hold:
 - Assessment year: AY 2026-27 (financial year 2025-26).
 - Taxpayer: resident individual.
 - Income: salary from domestic employment, plus only ancillary fields explicitly accepted by the deterministic engine.
-- Investments: delivery-based transactions in domestic listed equity that the engine explicitly accepts.
+- Investments: delivery-based domestic listed equity plus ordinary USD-denominated US common-stock investments that the dedicated engine explicitly accepts.
 - Documents: bundled synthetic fixtures, or explicitly authorized private documents after masked tax-fact extraction.
 - Purpose: evidence normalization, reconciliation, deterministic regime comparison/calculation, and proof-pack generation.
 
@@ -29,8 +29,9 @@ Stop calculation when the case includes any unsupported item, including:
 
 - Non-resident or resident-but-not-ordinarily-resident status.
 - Business or professional income, partnership income, presumptive income, or director/unlisted-share complexity.
-- Intraday, derivatives, futures and options, short selling, cryptoassets, or foreign securities.
-- Foreign income, foreign assets, tax treaties, foreign tax credit, or overseas employment are outside the current deterministic engine. Their presence must produce a partial-support result and an exact list of missing calculations; it must not prevent evidence inventory.
+- Intraday, derivatives, futures and options, short selling, cryptoassets, margin, securities lending, or non-US foreign securities.
+- US-stock support requires ROR status, investment classification, complete FIFO acquisition history with documented INR costs, verified prior-month-end SBI TT buying rates for sales, ordinary cash-purchased common stock, USD, no capital losses requiring cross-asset set-off, no foreign tax on capital gains, and no corporate actions.
+- RSUs, ESPPs, employee stock options, splits, mergers, spin-offs, return of capital, gifts, inheritance, multiple currencies, treaty-specific capital-gains relief, foreign capital-loss carry-forward, and overseas employment remain outside the deterministic engine. Their presence must produce a partial-support result and an exact list of missing calculations; it must not prevent evidence inventory.
 - Agricultural-income interactions, trusts, estates, clubbing/minor income, carry-forward losses, or other cases the engine does not declare supported.
 - Amended, revised, belated, defective, notice-response, assessment, appeal, audit, or litigation workflows.
 - Direct filing, portal automation, credential handling, OTP handling, signatures, payments, refunds, or representation before an authority.

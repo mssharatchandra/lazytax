@@ -16,7 +16,9 @@ export const IncomeCategorySchema = z.enum([
   "employer_tds",
   "foreign_tax_withheld",
   "foreign_capital_gains",
-  "other_foreign_income"
+  "other_foreign_income",
+  "foreign_stock_stcg",
+  "foreign_stock_ltcg"
 ]);
 export type IncomeCategory = z.infer<typeof IncomeCategorySchema>;
 
@@ -138,7 +140,7 @@ export const LocalPrivateEvidenceItemSchema = EvidenceItemSchema.extend({
   label: z
     .string()
     .regex(
-      /^Private (?:salary|interest|dividend|foreign_dividend|listed_equity_stcg|listed_equity_ltcg|employer_tds|foreign_tax_withheld|foreign_capital_gains|other_foreign_income) evidence$/
+      /^Private (?:salary|interest|dividend|foreign_dividend|listed_equity_stcg|listed_equity_ltcg|employer_tds|foreign_tax_withheld|foreign_capital_gains|other_foreign_income|foreign_stock_stcg|foreign_stock_ltcg) evidence$/
     ),
   locator: z.string().regex(/^line_[a-f0-9]{16}$/),
   notes: z.never().optional()
@@ -231,6 +233,7 @@ export const TaxpayerProfileSchema = z
     has_foreign_capital_gains: z.boolean().optional(),
     has_other_foreign_income: z.boolean().optional(),
     has_foreign_assets_beyond_dividend_source: z.boolean().optional(),
+    has_unsupported_foreign_assets: z.boolean().optional(),
     has_house_property_income: z.literal(false),
     has_crypto_or_other_special_rate_income: z.literal(false),
     claims_deductions_beyond_standard_deduction: z.literal(false)
@@ -249,7 +252,9 @@ export const TaxInputsSchema = z
     employer_tds_inr: z.number().int().nonnegative().max(50_000_000).optional(),
     foreign_tax_withheld_inr: z.number().int().nonnegative().max(50_000_000).optional(),
     foreign_capital_gains_inr: z.number().int().nonnegative().max(50_000_000).optional(),
-    other_foreign_income_inr: z.number().int().nonnegative().max(50_000_000).optional()
+    other_foreign_income_inr: z.number().int().nonnegative().max(50_000_000).optional(),
+    foreign_stock_stcg_inr: z.number().int().nonnegative().max(50_000_000).optional(),
+    foreign_stock_ltcg_inr: z.number().int().nonnegative().max(50_000_000).optional()
   })
   .strict();
 export type TaxInputs = z.infer<typeof TaxInputsSchema>;
@@ -264,10 +269,14 @@ export const TaxCalculationSchema = z
     normal_rate_income_inr: z.number(),
     taxable_stcg_inr: z.number(),
     taxable_ltcg_inr: z.number(),
+    foreign_stock_stcg_inr: z.number().nonnegative(),
+    foreign_stock_ltcg_inr: z.number().nonnegative(),
     total_taxable_income_inr: z.number(),
     slab_tax_inr: z.number(),
     stcg_tax_inr: z.number(),
     ltcg_tax_inr: z.number(),
+    foreign_stock_stcg_tax_inr: z.number().nonnegative(),
+    foreign_stock_ltcg_tax_inr: z.number().nonnegative(),
     rebate_87a_inr: z.number(),
     tax_before_cess_inr: z.number(),
     health_education_cess_inr: z.number(),
@@ -334,3 +343,5 @@ export const TaxProofPackSchema = TaxProofPackBaseSchema.extend({
   privacy_guarantees: LocalPrivacyGuaranteesSchema.optional()
 }).strict();
 export type TaxProofPack = z.infer<typeof TaxProofPackSchema>;
+
+export * from "./us-stocks.js";

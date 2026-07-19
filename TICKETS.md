@@ -275,11 +275,11 @@ Hero (live product recording), "how it works" in 3 steps, trust section (determi
 **AC:** Lighthouse ≥95 perf/a11y; countdown correct in IST; copy approved.
 **V:** Lighthouse report + screenshots.
 
-### LZ-27 · Foreign stocks capture (guidance-only)
-`pkg:web`+`pkg:agent` · deps: LZ-14 · 2h
-Detect foreign-stock mention/upload → capture intent, explain Schedule FA obligation plainly, mark profile "needs CA review", email them the guide. No computation.
-**AC:** agent never attempts FA computation (eval case); guide email sends.
-**V:** eval case + test email.
+### LZ-27 · US common-stock tax and disclosure engine
+`pkg:core`+`pkg:engine`+`pkg:mcp`+`pkg:agent` · deps: LZ-14 · implemented MVP
+Detect US-stock evidence; separate FY2025-26 transactions from calendar-2025 Schedule FA data; match ordinary USD investment lots using FIFO; require documented INR acquisition cost for every buy and validate evidenced prior-month-end SBI TT buying-rate dates for every sale; classify foreign STCG at normal rates and foreign LTCG under section 112; prepare Schedule CG/FSI/FA and tax-bridge facts. Reject RSUs/ESPPs/options, derivatives, shorts, corporate actions, missing lots/costs/rates, foreign capital-gains tax and losses requiring cross-asset set-off.
+**AC:** source references and account/trade IDs are pseudonymized; no domestic 111A/112A treatment is applied; output bridges unchanged into private reconciliation; incomplete/unsupported cases fail closed without blocking evidence inventory.
+**V:** engine FIFO/FX/gain/loss golden tests, MCP bridge-to-tax test, source/isolated/installed plugin smoke.
 
 ---
 

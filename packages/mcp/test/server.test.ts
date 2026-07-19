@@ -4,7 +4,7 @@ import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 import { createLazyTaxServer } from "../src/server.js";
 
-test("server exposes five focused tools and completes the bundled proof-pack workflow", async () => {
+test("server exposes six focused tools and completes the bundled proof-pack workflow", async () => {
   const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
   const server = createLazyTaxServer();
   const client = new Client({ name: "lazytax-test-client", version: "0.1.0" });
@@ -15,6 +15,7 @@ test("server exposes five focused tools and completes the bundled proof-pack wor
       listed.tools.map((tool) => tool.name).sort(),
       [
         "lazytax_calculate_compare_regimes",
+        "lazytax_compute_us_stock_investments",
         "lazytax_generate_tax_proof_pack",
         "lazytax_normalize_fixture_data",
         "lazytax_normalize_private_tax_facts",
@@ -130,6 +131,146 @@ test("server exposes five focused tools and completes the bundled proof-pack wor
     assert.equal(
       (proof.structuredContent as { integrity?: { algorithm?: string } }).integrity?.algorithm,
       "SHA-256"
+    );
+  } finally {
+    await client.close();
+    await server.close();
+  }
+});
+
+test("US-stock MCP tool emits bridge entries that flow into private tax calculation", async () => {
+  const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
+  const server = createLazyTaxServer();
+  const client = new Client({ name: "lazytax-us-stock-test", version: "0.1.0" });
+  await Promise.all([server.connect(serverTransport), client.connect(clientTransport)]);
+  try {
+    const computed = await client.callTool({
+      name: "lazytax_compute_us_stock_investments",
+      arguments: {
+        data_mode: "local_private",
+        assessment_year: "2026-27",
+        financial_year: "FY2025-26",
+        schedule_fa_calendar_year_end: "2025-12-31",
+        country_code: "002",
+        currency: "USD",
+        is_resident_and_ordinarily_resident: true,
+        asset_classification: "investment",
+        lot_method: "FIFO",
+        conversion_policy: "documented_inr_cost_and_rule115_sale",
+        trades: [
+          {
+            trade_id: "buy-aapl",
+            ticker: "AAPL",
+            trade_date: "2023-01-10",
+            side: "buy",
+            quantity: 1,
+            price_usd: 100,
+            fees_usd: 0,
+            documented_acquisition_cost_inr: 8_000,
+            source_ref: "SRC-BUY-AAPL"
+          },
+          {
+            trade_id: "sell-aapl",
+            ticker: "AAPL",
+            trade_date: "2025-04-11",
+            side: "sell",
+            quantity: 1,
+            price_usd: 150,
+            fees_usd: 0,
+            sbi_tt_buying_rate_inr_per_usd: 85,
+            fx_rate_date: "2025-03-31",
+            source_ref: "SRC-SELL-AAPL"
+          }
+        ],
+        equity_disclosures: [
+          {
+            disclosure_id: "fa-aapl",
+            ticker: "AAPL",
+            entity_name: "Apple Inc.",
+            acquired_on: "2023-01-10",
+            initial_value_inr: 8_000,
+            peak_value_inr: 12_750,
+            closing_value_inr: 0,
+            gross_credits_inr: 0,
+            gross_sale_proceeds_inr: 12_750,
+            source_ref: "SRC-FA-AAPL"
+          }
+        ],
+        has_corporate_actions: false,
+        has_employee_equity: false,
+        has_derivatives: false,
+        has_short_sales: false,
+        foreign_tax_on_capital_gains_inr: 0
+      }
+    });
+    assert.equal(computed.isError, undefined);
+    const usResult = computed.structuredContent as {
+      ready_for_supported_tax_calculation?: boolean;
+      tax_bridge_entries?: Array<Record<string, unknown>>;
+      schedule_cg?: { long_term_section_112_gain_inr?: number };
+    };
+    assert.equal(usResult.ready_for_supported_tax_calculation, true);
+    assert.equal(usResult.schedule_cg?.long_term_section_112_gain_inr, 4_750);
+    assert.equal(usResult.tax_bridge_entries?.length, 1);
+
+    const normalized = await client.callTool({
+      name: "lazytax_normalize_private_tax_facts",
+      arguments: {
+        local_private_processing_consent: true,
+        response_format: "json",
+        documents: [
+          {
+            data_mode: "local_private",
+            id: "private-us-tax",
+            kind: "other",
+            display_name: "Private supported US tax facts",
+            synthetic: false,
+            tax_year: "FY2025-26",
+            assessment_year: "AY2026-27",
+            taxpayer_ref: "PRIVATE-TEST-REFERENCE",
+            currency: "INR",
+            entries: [
+              { id: "salary", label: "Salary", category: "salary", amount_inr: 1_800_000, locator: "SRC-SALARY" },
+              { id: "us-ltcg", label: "US stock LTCG", category: "foreign_stock_ltcg", amount_inr: 4_750, locator: "SRC-US-RESULT" }
+            ]
+          }
+        ]
+      }
+    });
+    assert.equal(normalized.isError, undefined);
+    const reconciliation = await client.callTool({
+      name: "lazytax_reconcile_evidence",
+      arguments: { dataset: normalized.structuredContent, response_format: "json" }
+    });
+    assert.equal(reconciliation.isError, undefined);
+    const calculation = await client.callTool({
+      name: "lazytax_calculate_compare_regimes",
+      arguments: {
+        profile: {
+          assessment_year: "2026-27",
+          residency: "resident",
+          entity_type: "individual",
+          age: 24,
+          has_business_or_professional_income: false,
+          has_foreign_income_or_assets: true,
+          is_resident_and_ordinarily_resident: true,
+          has_foreign_capital_gains: true,
+          has_other_foreign_income: false,
+          has_foreign_assets_beyond_dividend_source: true,
+          has_unsupported_foreign_assets: false,
+          has_house_property_income: false,
+          has_crypto_or_other_special_rate_income: false,
+          claims_deductions_beyond_standard_deduction: false
+        },
+        reconciliation: reconciliation.structuredContent,
+        response_format: "json"
+      }
+    });
+    assert.equal(calculation.isError, undefined);
+    assert.equal(
+      (calculation.structuredContent as { new_regime?: { foreign_stock_ltcg_inr?: number } })
+        .new_regime?.foreign_stock_ltcg_inr,
+      4_750
     );
   } finally {
     await client.close();

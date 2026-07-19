@@ -1057,10 +1057,10 @@ var require_util = __commonJS({
     var codegen_1 = require_codegen();
     var code_1 = require_code();
     function toHash(arr) {
-      const hash = {};
+      const hash2 = {};
       for (const item of arr)
-        hash[item] = true;
-      return hash;
+        hash2[item] = true;
+      return hash2;
     }
     exports.toHash = toHash;
     function alwaysValidSchema(it, schema) {
@@ -21114,10 +21114,170 @@ import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
-// packages/core/dist/index.js
+// packages/core/dist/us-stocks.js
 var ASSESSMENT_YEAR = "2026-27";
-var DISCLAIMER = "Synthetic Build Week demonstration only. LazyTax does not file a return and is not tax, legal, or financial advice. Verify all figures against official records and a qualified professional before acting.";
 var PRIVATE_REVIEW_DISCLAIMER = "Private local review only. LazyTax does not file a return and is not tax, legal, or financial advice. Verify all figures against AIS, Form 26AS, the official filing utility, and a qualified professional before acting.";
+var IsoDateSchema = external_exports.string().regex(/^\d{4}-\d{2}-\d{2}$/).refine((value) => {
+  const parsed = /* @__PURE__ */ new Date(`${value}T00:00:00.000Z`);
+  return !Number.isNaN(parsed.valueOf()) && parsed.toISOString().slice(0, 10) === value;
+}, "Use a real calendar date in YYYY-MM-DD format.");
+var OpaqueIdSchema = external_exports.string().regex(/^[A-Za-z0-9_-]{1,120}$/);
+var UsStockTradeBaseSchema = external_exports.object({
+  trade_id: OpaqueIdSchema,
+  ticker: external_exports.string().regex(/^[A-Z][A-Z0-9.-]{0,14}$/),
+  trade_date: IsoDateSchema,
+  quantity: external_exports.number().positive().max(1e9),
+  price_usd: external_exports.number().positive().max(1e7),
+  fees_usd: external_exports.number().nonnegative().max(1e6).default(0),
+  source_ref: OpaqueIdSchema
+});
+var UsStockTradeSchema = external_exports.discriminatedUnion("side", [
+  UsStockTradeBaseSchema.extend({
+    side: external_exports.literal("buy"),
+    documented_acquisition_cost_inr: external_exports.number().int().positive().max(1e9)
+  }).strict(),
+  UsStockTradeBaseSchema.extend({
+    side: external_exports.literal("sell"),
+    sbi_tt_buying_rate_inr_per_usd: external_exports.number().positive().max(1e3),
+    fx_rate_date: IsoDateSchema
+  }).strict()
+]);
+var ForeignEquityDisclosureSchema = external_exports.object({
+  disclosure_id: OpaqueIdSchema,
+  ticker: external_exports.string().regex(/^[A-Z][A-Z0-9.-]{0,14}$/),
+  entity_name: external_exports.string().min(1).max(160),
+  acquired_on: IsoDateSchema,
+  initial_value_inr: external_exports.number().int().nonnegative().max(1e9),
+  peak_value_inr: external_exports.number().int().nonnegative().max(1e9),
+  closing_value_inr: external_exports.number().int().nonnegative().max(1e9),
+  gross_credits_inr: external_exports.number().int().nonnegative().max(1e9),
+  gross_sale_proceeds_inr: external_exports.number().int().nonnegative().max(1e9),
+  source_ref: OpaqueIdSchema
+}).strict();
+var ForeignCustodianDisclosureSchema = external_exports.object({
+  account_ref: OpaqueIdSchema,
+  institution_ref: OpaqueIdSchema,
+  opened_on: IsoDateSchema,
+  peak_balance_inr: external_exports.number().int().nonnegative().max(1e9),
+  closing_balance_inr: external_exports.number().int().nonnegative().max(1e9),
+  gross_credits_inr: external_exports.number().int().nonnegative().max(1e9),
+  source_ref: OpaqueIdSchema
+}).strict();
+var MaskedForeignEquityDisclosureSchema = ForeignEquityDisclosureSchema.extend({
+  disclosure_id: external_exports.string().regex(/^disclosure_[a-f0-9]{16}$/),
+  source_ref: external_exports.string().regex(/^src_[a-f0-9]{16}$/)
+}).strict();
+var MaskedForeignCustodianDisclosureSchema = ForeignCustodianDisclosureSchema.extend({
+  account_ref: external_exports.string().regex(/^account_[a-f0-9]{16}$/),
+  institution_ref: external_exports.string().regex(/^institution_[a-f0-9]{16}$/),
+  source_ref: external_exports.string().regex(/^src_[a-f0-9]{16}$/)
+}).strict();
+var UsStockComputationInputSchema = external_exports.object({
+  data_mode: external_exports.literal("local_private"),
+  assessment_year: external_exports.literal(ASSESSMENT_YEAR),
+  financial_year: external_exports.literal("FY2025-26"),
+  schedule_fa_calendar_year_end: external_exports.literal("2025-12-31"),
+  country_code: external_exports.literal("002"),
+  currency: external_exports.literal("USD"),
+  is_resident_and_ordinarily_resident: external_exports.literal(true),
+  asset_classification: external_exports.literal("investment"),
+  lot_method: external_exports.literal("FIFO"),
+  conversion_policy: external_exports.literal("documented_inr_cost_and_rule115_sale"),
+  trades: external_exports.array(UsStockTradeSchema).max(1e4).default([]),
+  equity_disclosures: external_exports.array(ForeignEquityDisclosureSchema).max(5e3).default([]),
+  custodian_disclosure: ForeignCustodianDisclosureSchema.optional(),
+  has_corporate_actions: external_exports.literal(false),
+  has_employee_equity: external_exports.literal(false),
+  has_derivatives: external_exports.literal(false),
+  has_short_sales: external_exports.literal(false),
+  foreign_tax_on_capital_gains_inr: external_exports.literal(0)
+}).strict().refine((value) => value.trades.length > 0 || value.equity_disclosures.length > 0, "Provide at least one trade or one Schedule FA equity-disclosure row.");
+var UsStockMatchedLotSchema = external_exports.object({
+  ticker: external_exports.string(),
+  buy_trade_id: external_exports.string().regex(/^trade_[a-f0-9]{16}$/),
+  sell_trade_id: external_exports.string().regex(/^trade_[a-f0-9]{16}$/),
+  buy_source_ref: external_exports.string().regex(/^src_[a-f0-9]{16}$/),
+  sell_source_ref: external_exports.string().regex(/^src_[a-f0-9]{16}$/),
+  acquired_on: IsoDateSchema,
+  sold_on: IsoDateSchema,
+  quantity: external_exports.number().positive(),
+  holding_period_days: external_exports.number().int().nonnegative(),
+  classification: external_exports.enum(["short_term_normal_rate", "long_term_section_112"]),
+  acquisition_cost_inr: external_exports.number().int().nonnegative(),
+  sale_value_inr: external_exports.number().int().nonnegative(),
+  transfer_expenses_inr: external_exports.number().int().nonnegative(),
+  gain_loss_inr: external_exports.number().int()
+}).strict();
+var UsStockOpenLotSchema = external_exports.object({
+  ticker: external_exports.string(),
+  buy_trade_id: external_exports.string().regex(/^trade_[a-f0-9]{16}$/),
+  source_ref: external_exports.string().regex(/^src_[a-f0-9]{16}$/),
+  acquired_on: IsoDateSchema,
+  remaining_quantity: external_exports.number().positive(),
+  remaining_cost_inr: external_exports.number().int().nonnegative()
+}).strict();
+var UsStockTaxBridgeEntrySchema = external_exports.object({
+  id: external_exports.string(),
+  label: external_exports.string(),
+  category: external_exports.enum(["foreign_stock_stcg", "foreign_stock_ltcg"]),
+  amount_inr: external_exports.number().int().nonnegative(),
+  locator: external_exports.string()
+}).strict();
+var UsStockComputationResultSchema = external_exports.object({
+  schema_version: external_exports.literal("lazytax.us-stocks.v1"),
+  data_mode: external_exports.literal("local_private"),
+  assessment_year: external_exports.literal(ASSESSMENT_YEAR),
+  financial_year: external_exports.literal("FY2025-26"),
+  schedule_fa_calendar_year_end: external_exports.literal("2025-12-31"),
+  country_code: external_exports.literal("002"),
+  currency: external_exports.literal("USD"),
+  lot_method: external_exports.literal("FIFO"),
+  conversion_policy: external_exports.literal("documented_inr_cost_and_rule115_sale"),
+  matched_lots: external_exports.array(UsStockMatchedLotSchema),
+  open_lots: external_exports.array(UsStockOpenLotSchema),
+  totals: external_exports.object({
+    short_term_gains_inr: external_exports.number().int().nonnegative(),
+    short_term_losses_inr: external_exports.number().int().nonnegative(),
+    long_term_gains_inr: external_exports.number().int().nonnegative(),
+    long_term_losses_inr: external_exports.number().int().nonnegative(),
+    net_short_term_inr: external_exports.number().int(),
+    net_long_term_inr: external_exports.number().int(),
+    gross_sale_value_inr: external_exports.number().int().nonnegative(),
+    transfer_expenses_inr: external_exports.number().int().nonnegative(),
+    acquisition_cost_inr: external_exports.number().int().nonnegative()
+  }).strict(),
+  ready_for_supported_tax_calculation: external_exports.boolean(),
+  tax_bridge_entries: external_exports.array(UsStockTaxBridgeEntrySchema),
+  schedule_cg: external_exports.object({
+    short_term_gain_taxed_at_normal_rates_inr: external_exports.number().int().nonnegative(),
+    long_term_section_112_gain_inr: external_exports.number().int().nonnegative(),
+    long_term_rate_percent: external_exports.literal(12.5),
+    losses_requiring_setoff_review_inr: external_exports.number().int().nonnegative()
+  }).strict(),
+  schedule_fsi: external_exports.object({
+    head_of_income: external_exports.literal("Capital Gains"),
+    foreign_income_inr: external_exports.number().int(),
+    foreign_tax_paid_inr: external_exports.literal(0),
+    relief_available_inr: external_exports.literal(0),
+    treaty_article_review_required: external_exports.literal(true)
+  }).strict(),
+  schedule_fa: external_exports.object({
+    calendar_year_end: external_exports.literal("2025-12-31"),
+    custodian: MaskedForeignCustodianDisclosureSchema.optional(),
+    foreign_equities: external_exports.array(MaskedForeignEquityDisclosureSchema),
+    requires_raw_identifiers_at_filing: external_exports.literal(true)
+  }).strict(),
+  source_set_hash: external_exports.string().regex(/^[a-f0-9]{64}$/),
+  warnings: external_exports.array(external_exports.string()),
+  unsupported_items: external_exports.array(external_exports.string()),
+  official_rule_urls: external_exports.array(external_exports.string().url()),
+  disclaimer: external_exports.literal(PRIVATE_REVIEW_DISCLAIMER)
+}).strict();
+
+// packages/core/dist/index.js
+var ASSESSMENT_YEAR2 = "2026-27";
+var DISCLAIMER = "Synthetic Build Week demonstration only. LazyTax does not file a return and is not tax, legal, or financial advice. Verify all figures against official records and a qualified professional before acting.";
+var PRIVATE_REVIEW_DISCLAIMER2 = "Private local review only. LazyTax does not file a return and is not tax, legal, or financial advice. Verify all figures against AIS, Form 26AS, the official filing utility, and a qualified professional before acting.";
 var IncomeCategorySchema = external_exports.enum([
   "salary",
   "interest",
@@ -21128,7 +21288,9 @@ var IncomeCategorySchema = external_exports.enum([
   "employer_tds",
   "foreign_tax_withheld",
   "foreign_capital_gains",
-  "other_foreign_income"
+  "other_foreign_income",
+  "foreign_stock_stcg",
+  "foreign_stock_ltcg"
 ]);
 var DocumentKindSchema = external_exports.enum(["form16", "ais", "broker_report", "other"]);
 var DataModeSchema = external_exports.enum(["synthetic_demo", "local_private"]);
@@ -21210,7 +21372,7 @@ var LocalPrivateEvidenceItemSchema = EvidenceItemSchema.extend({
   document_id: external_exports.string().regex(/^doc_[a-f0-9]{16}$/),
   document_name: external_exports.string().regex(/^Private (?:form16|ais|broker_report|other) evidence$/),
   entry_id: external_exports.string().regex(/^line_[a-f0-9]{16}$/),
-  label: external_exports.string().regex(/^Private (?:salary|interest|dividend|foreign_dividend|listed_equity_stcg|listed_equity_ltcg|employer_tds|foreign_tax_withheld|foreign_capital_gains|other_foreign_income) evidence$/),
+  label: external_exports.string().regex(/^Private (?:salary|interest|dividend|foreign_dividend|listed_equity_stcg|listed_equity_ltcg|employer_tds|foreign_tax_withheld|foreign_capital_gains|other_foreign_income|foreign_stock_stcg|foreign_stock_ltcg) evidence$/),
   locator: external_exports.string().regex(/^line_[a-f0-9]{16}$/),
   notes: external_exports.never().optional()
 }).strict();
@@ -21226,7 +21388,7 @@ var OutputTaxpayerReferenceSchema = external_exports.union([
 ]);
 var NormalizedDatasetSchema = external_exports.object({
   data_mode: DataModeSchema,
-  assessment_year: external_exports.literal(ASSESSMENT_YEAR),
+  assessment_year: external_exports.literal(ASSESSMENT_YEAR2),
   tax_year: external_exports.literal("FY2025-26"),
   taxpayer_ref: OutputTaxpayerReferenceSchema,
   synthetic: external_exports.boolean(),
@@ -21262,11 +21424,11 @@ var ReconciliationResultBaseSchema = external_exports.object({
 }).strict();
 var ReconciliationResultSchema = ReconciliationResultBaseSchema.extend({
   data_mode: DataModeSchema,
-  assessment_year: external_exports.literal(ASSESSMENT_YEAR),
+  assessment_year: external_exports.literal(ASSESSMENT_YEAR2),
   taxpayer_ref: OutputTaxpayerReferenceSchema
 }).strict();
 var TaxpayerProfileSchema = external_exports.object({
-  assessment_year: external_exports.literal(ASSESSMENT_YEAR),
+  assessment_year: external_exports.literal(ASSESSMENT_YEAR2),
   residency: external_exports.literal("resident"),
   entity_type: external_exports.literal("individual"),
   age: external_exports.number().int().min(18).max(59).describe("MVP supports resident individuals under 60 only."),
@@ -21276,6 +21438,7 @@ var TaxpayerProfileSchema = external_exports.object({
   has_foreign_capital_gains: external_exports.boolean().optional(),
   has_other_foreign_income: external_exports.boolean().optional(),
   has_foreign_assets_beyond_dividend_source: external_exports.boolean().optional(),
+  has_unsupported_foreign_assets: external_exports.boolean().optional(),
   has_house_property_income: external_exports.literal(false),
   has_crypto_or_other_special_rate_income: external_exports.literal(false),
   claims_deductions_beyond_standard_deduction: external_exports.literal(false)
@@ -21290,7 +21453,9 @@ var TaxInputsSchema = external_exports.object({
   employer_tds_inr: external_exports.number().int().nonnegative().max(5e7).optional(),
   foreign_tax_withheld_inr: external_exports.number().int().nonnegative().max(5e7).optional(),
   foreign_capital_gains_inr: external_exports.number().int().nonnegative().max(5e7).optional(),
-  other_foreign_income_inr: external_exports.number().int().nonnegative().max(5e7).optional()
+  other_foreign_income_inr: external_exports.number().int().nonnegative().max(5e7).optional(),
+  foreign_stock_stcg_inr: external_exports.number().int().nonnegative().max(5e7).optional(),
+  foreign_stock_ltcg_inr: external_exports.number().int().nonnegative().max(5e7).optional()
 }).strict();
 var TaxRegimeSchema = external_exports.enum(["old", "new"]);
 var TaxCalculationSchema = external_exports.object({
@@ -21299,10 +21464,14 @@ var TaxCalculationSchema = external_exports.object({
   normal_rate_income_inr: external_exports.number(),
   taxable_stcg_inr: external_exports.number(),
   taxable_ltcg_inr: external_exports.number(),
+  foreign_stock_stcg_inr: external_exports.number().nonnegative(),
+  foreign_stock_ltcg_inr: external_exports.number().nonnegative(),
   total_taxable_income_inr: external_exports.number(),
   slab_tax_inr: external_exports.number(),
   stcg_tax_inr: external_exports.number(),
   ltcg_tax_inr: external_exports.number(),
+  foreign_stock_stcg_tax_inr: external_exports.number().nonnegative(),
+  foreign_stock_ltcg_tax_inr: external_exports.number().nonnegative(),
   rebate_87a_inr: external_exports.number(),
   tax_before_cess_inr: external_exports.number(),
   health_education_cess_inr: external_exports.number(),
@@ -21325,7 +21494,7 @@ var TaxCalculationSchema = external_exports.object({
   disclaimer: external_exports.string()
 }).strict();
 var RegimeComparisonSchema = external_exports.object({
-  assessment_year: external_exports.literal(ASSESSMENT_YEAR),
+  assessment_year: external_exports.literal(ASSESSMENT_YEAR2),
   old_regime: TaxCalculationSchema,
   new_regime: TaxCalculationSchema,
   lower_estimated_regime: TaxRegimeSchema,
@@ -21336,7 +21505,7 @@ var RegimeComparisonSchema = external_exports.object({
 var TaxProofPackBaseSchema = external_exports.object({
   schema_version: external_exports.literal("0.1.0"),
   generated_at: external_exports.string().datetime(),
-  assessment_year: external_exports.literal(ASSESSMENT_YEAR),
+  assessment_year: external_exports.literal(ASSESSMENT_YEAR2),
   supported_profile: TaxpayerProfileSchema,
   calculation: RegimeComparisonSchema,
   unresolved_actions: external_exports.array(external_exports.string()),
@@ -21360,7 +21529,291 @@ var TaxProofPackSchema = TaxProofPackBaseSchema.extend({
 }).strict();
 
 // packages/engine/dist/index.js
-import { createHash, createHmac, randomBytes } from "node:crypto";
+import { createHash, createHmac as createHmac2, randomBytes as randomBytes2 } from "node:crypto";
+
+// packages/engine/dist/us-stocks.js
+import { createHmac, randomBytes } from "node:crypto";
+var US_STOCK_RULE_SOURCES = [
+  "https://www.incometax.gov.in/iec/foportal/help/all-topics/e-filing-services/file-itr-2-online",
+  "https://www.incometax.gov.in/iec/foportal/sites/default/files/2026-03/Step%20by%20Step%20Guide%20FA%20FSI.pdf",
+  "https://wmstatic-prd.incometaxindia.gov.in/web/guest/w/rule-115-2",
+  "https://wmstatic-prd.incometaxindia.gov.in/documents/20117/42998/Rule-128_2026-01-13_11-37-01_1c629b_en.pdf/145a3343-3b83-7223-7064-8fd9194f161c?download=true&t=1775731788761&version=6.0",
+  "https://www.incometaxindia.gov.in/documents/20117/11892059/Section%2B-%2B2_en.pdf/2387617a-a0a4-6d38-9f33-85a0b9e4d18c?download=true&t=1766001046772&version=1.0",
+  "https://www.incometaxindia.gov.in/w/section-48-64",
+  "https://www.incometaxindia.gov.in/w/section-112-66"
+];
+var US_STOCK_PRIVATE_SESSION_KEY = randomBytes(32);
+function privateToken(prefix, value) {
+  return `${prefix}_${createHmac("sha256", US_STOCK_PRIVATE_SESSION_KEY).update(value).digest("hex").slice(0, 16)}`;
+}
+function canonicalize(value) {
+  if (Array.isArray(value))
+    return `[${value.map(canonicalize).join(",")}]`;
+  if (value !== null && typeof value === "object") {
+    const object3 = value;
+    return `{${Object.keys(object3).sort().map((key) => `${JSON.stringify(key)}:${canonicalize(object3[key])}`).join(",")}}`;
+  }
+  return JSON.stringify(value);
+}
+function hash(value) {
+  return createHmac("sha256", US_STOCK_PRIVATE_SESSION_KEY).update(canonicalize(value)).digest("hex");
+}
+function parseDate(value) {
+  return /* @__PURE__ */ new Date(`${value}T00:00:00.000Z`);
+}
+function daysBetween(first, second) {
+  return Math.floor((parseDate(second).valueOf() - parseDate(first).valueOf()) / 864e5);
+}
+function addUtcMonths(value, months) {
+  const date3 = parseDate(value);
+  date3.setUTCMonth(date3.getUTCMonth() + months);
+  return date3;
+}
+function previousMonthEnd(value) {
+  const date3 = parseDate(value);
+  const end = new Date(Date.UTC(date3.getUTCFullYear(), date3.getUTCMonth(), 0));
+  return end.toISOString().slice(0, 10);
+}
+function rupee(value) {
+  return Math.round(value);
+}
+function assertInputIntegrity(input) {
+  const tradeIds = /* @__PURE__ */ new Set();
+  const tradeSourceRefs = /* @__PURE__ */ new Set();
+  for (const trade of input.trades) {
+    if (tradeIds.has(trade.trade_id)) {
+      throw new Error(`Duplicate US-stock trade ID ${privateToken("trade", trade.trade_id)}.`);
+    }
+    if (tradeSourceRefs.has(trade.source_ref)) {
+      throw new Error(`Duplicate US-stock trade source reference ${privateToken("src", trade.source_ref)}.`);
+    }
+    tradeIds.add(trade.trade_id);
+    tradeSourceRefs.add(trade.source_ref);
+    if (trade.side === "sell") {
+      const expectedRateDate = previousMonthEnd(trade.trade_date);
+      if (trade.fx_rate_date !== expectedRateDate) {
+        throw new Error(`Trade ${privateToken("trade", trade.trade_id)} must use the prior-month-end SBI TT buying-rate date ${expectedRateDate}; received ${trade.fx_rate_date}.`);
+      }
+      if (trade.trade_date < "2025-04-01" || trade.trade_date > "2026-03-31") {
+        throw new Error(`Sale ${privateToken("trade", trade.trade_id)} is outside FY2025-26.`);
+      }
+    } else if (trade.trade_date > "2026-03-31") {
+      throw new Error(`Purchase ${privateToken("trade", trade.trade_id)} occurs after FY2025-26.`);
+    }
+  }
+  const disclosureIds = /* @__PURE__ */ new Set();
+  for (const disclosure of input.equity_disclosures) {
+    if (disclosureIds.has(disclosure.disclosure_id)) {
+      throw new Error(`Duplicate Schedule FA disclosure ID ${privateToken("disclosure", disclosure.disclosure_id)}.`);
+    }
+    disclosureIds.add(disclosure.disclosure_id);
+    if (disclosure.acquired_on > input.schedule_fa_calendar_year_end) {
+      throw new Error(`Schedule FA row ${privateToken("disclosure", disclosure.disclosure_id)} was acquired after ${input.schedule_fa_calendar_year_end}.`);
+    }
+    if (disclosure.peak_value_inr < disclosure.initial_value_inr || disclosure.peak_value_inr < disclosure.closing_value_inr) {
+      throw new Error(`Schedule FA row ${privateToken("disclosure", disclosure.disclosure_id)} has an invalid peak value.`);
+    }
+  }
+  if (input.custodian_disclosure !== void 0) {
+    const disclosure = input.custodian_disclosure;
+    if (disclosure.opened_on > input.schedule_fa_calendar_year_end) {
+      throw new Error("The foreign custodian account opened after the Schedule FA calendar-year end.");
+    }
+    if (disclosure.peak_balance_inr < disclosure.closing_balance_inr) {
+      throw new Error("The foreign custodian peak balance is below its closing balance.");
+    }
+  }
+}
+function computeUsStockInvestments(inputValue) {
+  const input = UsStockComputationInputSchema.parse(inputValue);
+  assertInputIntegrity(input);
+  const lotsByTicker = /* @__PURE__ */ new Map();
+  const matchedLots = [];
+  const sortedTrades = [...input.trades].sort((left, right) => {
+    const dateOrder = left.trade_date.localeCompare(right.trade_date);
+    if (dateOrder !== 0)
+      return dateOrder;
+    const sideOrder = left.side === right.side ? 0 : left.side === "buy" ? -1 : 1;
+    return sideOrder !== 0 ? sideOrder : left.trade_id.localeCompare(right.trade_id);
+  });
+  for (const trade of sortedTrades) {
+    const tickerLots = lotsByTicker.get(trade.ticker) ?? [];
+    if (!lotsByTicker.has(trade.ticker))
+      lotsByTicker.set(trade.ticker, tickerLots);
+    if (trade.side === "buy") {
+      tickerLots.push({
+        ticker: trade.ticker,
+        buyTradeId: privateToken("trade", trade.trade_id),
+        sourceRef: privateToken("src", trade.source_ref),
+        acquiredOn: trade.trade_date,
+        remainingQuantity: trade.quantity,
+        remainingCostInr: trade.documented_acquisition_cost_inr
+      });
+      continue;
+    }
+    const grossInr = trade.quantity * trade.price_usd * trade.sbi_tt_buying_rate_inr_per_usd;
+    const feesInr = trade.fees_usd * trade.sbi_tt_buying_rate_inr_per_usd;
+    const availableQuantity = tickerLots.reduce((sum, lot) => sum + lot.remainingQuantity, 0);
+    if (availableQuantity + 1e-9 < trade.quantity) {
+      throw new Error(`Sale ${privateToken("trade", trade.trade_id)} has quantity ${trade.quantity} but FIFO inventory contains only ${availableQuantity} ${trade.ticker} share(s). Include prior acquisition lots.`);
+    }
+    let quantityToMatch = trade.quantity;
+    for (const lot of tickerLots) {
+      if (quantityToMatch <= 1e-9)
+        break;
+      if (lot.remainingQuantity <= 1e-9)
+        continue;
+      const quantity = Math.min(quantityToMatch, lot.remainingQuantity);
+      const buyFraction = quantity / lot.remainingQuantity;
+      const acquisitionCost = lot.remainingCostInr * buyFraction;
+      const saleFraction = quantity / trade.quantity;
+      const saleValue = grossInr * saleFraction;
+      const transferExpenses = feesInr * saleFraction;
+      const twentyFourMonthAnniversary = addUtcMonths(lot.acquiredOn, 24);
+      const classification = parseDate(trade.trade_date).valueOf() > twentyFourMonthAnniversary.valueOf() ? "long_term_section_112" : "short_term_normal_rate";
+      matchedLots.push({
+        ticker: trade.ticker,
+        buy_trade_id: lot.buyTradeId,
+        sell_trade_id: privateToken("trade", trade.trade_id),
+        buy_source_ref: lot.sourceRef,
+        sell_source_ref: privateToken("src", trade.source_ref),
+        acquired_on: lot.acquiredOn,
+        sold_on: trade.trade_date,
+        quantity,
+        holding_period_days: daysBetween(lot.acquiredOn, trade.trade_date),
+        classification,
+        acquisition_cost_inr: rupee(acquisitionCost),
+        sale_value_inr: rupee(saleValue),
+        transfer_expenses_inr: rupee(transferExpenses),
+        gain_loss_inr: rupee(saleValue - transferExpenses - acquisitionCost)
+      });
+      lot.remainingQuantity -= quantity;
+      lot.remainingCostInr -= acquisitionCost;
+      quantityToMatch -= quantity;
+    }
+  }
+  const openLots = [...lotsByTicker.values()].flatMap((lots) => lots).filter((lot) => lot.remainingQuantity > 1e-9).map((lot) => ({
+    ticker: lot.ticker,
+    buy_trade_id: lot.buyTradeId,
+    source_ref: lot.sourceRef,
+    acquired_on: lot.acquiredOn,
+    remaining_quantity: lot.remainingQuantity,
+    remaining_cost_inr: rupee(lot.remainingCostInr)
+  }));
+  const shortTerm = matchedLots.filter((lot) => lot.classification === "short_term_normal_rate");
+  const longTerm = matchedLots.filter((lot) => lot.classification === "long_term_section_112");
+  const sumPositive = (lots) => lots.reduce((sum, lot) => sum + Math.max(0, lot.gain_loss_inr), 0);
+  const sumLoss = (lots) => lots.reduce((sum, lot) => sum + Math.max(0, -lot.gain_loss_inr), 0);
+  const shortTermGains = sumPositive(shortTerm);
+  const shortTermLosses = sumLoss(shortTerm);
+  const longTermGains = sumPositive(longTerm);
+  const longTermLosses = sumLoss(longTerm);
+  const netShortTerm = shortTermGains - shortTermLosses;
+  const netLongTerm = longTermGains - longTermLosses;
+  const lossesRequiringReview = shortTermLosses + longTermLosses;
+  const readyForTax = lossesRequiringReview === 0;
+  const sourceSetHash = hash(input);
+  const taxBridgeEntries = readyForTax ? [
+    ...netShortTerm > 0 ? [
+      {
+        id: `us-${sourceSetHash.slice(0, 16)}-stcg`,
+        label: "US stock short-term capital gain",
+        category: "foreign_stock_stcg",
+        amount_inr: netShortTerm,
+        locator: `US-STOCKS-${sourceSetHash.slice(0, 16)}`
+      }
+    ] : [],
+    ...netLongTerm > 0 ? [
+      {
+        id: `us-${sourceSetHash.slice(0, 16)}-ltcg`,
+        label: "US stock long-term capital gain",
+        category: "foreign_stock_ltcg",
+        amount_inr: netLongTerm,
+        locator: `US-STOCKS-${sourceSetHash.slice(0, 16)}`
+      }
+    ] : []
+  ] : [];
+  return UsStockComputationResultSchema.parse({
+    schema_version: "lazytax.us-stocks.v1",
+    data_mode: "local_private",
+    assessment_year: "2026-27",
+    financial_year: "FY2025-26",
+    schedule_fa_calendar_year_end: "2025-12-31",
+    country_code: "002",
+    currency: "USD",
+    lot_method: "FIFO",
+    conversion_policy: "documented_inr_cost_and_rule115_sale",
+    matched_lots: matchedLots,
+    open_lots: openLots,
+    totals: {
+      short_term_gains_inr: shortTermGains,
+      short_term_losses_inr: shortTermLosses,
+      long_term_gains_inr: longTermGains,
+      long_term_losses_inr: longTermLosses,
+      net_short_term_inr: netShortTerm,
+      net_long_term_inr: netLongTerm,
+      gross_sale_value_inr: matchedLots.reduce((sum, lot) => sum + lot.sale_value_inr, 0),
+      transfer_expenses_inr: matchedLots.reduce((sum, lot) => sum + lot.transfer_expenses_inr, 0),
+      acquisition_cost_inr: matchedLots.reduce((sum, lot) => sum + lot.acquisition_cost_inr, 0)
+    },
+    ready_for_supported_tax_calculation: readyForTax,
+    tax_bridge_entries: taxBridgeEntries,
+    schedule_cg: {
+      short_term_gain_taxed_at_normal_rates_inr: readyForTax ? netShortTerm : 0,
+      long_term_section_112_gain_inr: readyForTax ? netLongTerm : 0,
+      long_term_rate_percent: 12.5,
+      losses_requiring_setoff_review_inr: lossesRequiringReview
+    },
+    schedule_fsi: {
+      head_of_income: "Capital Gains",
+      foreign_income_inr: netShortTerm + netLongTerm,
+      foreign_tax_paid_inr: 0,
+      relief_available_inr: 0,
+      treaty_article_review_required: true
+    },
+    schedule_fa: {
+      calendar_year_end: "2025-12-31",
+      ...input.custodian_disclosure === void 0 ? {} : {
+        custodian: {
+          ...input.custodian_disclosure,
+          account_ref: privateToken("account", input.custodian_disclosure.account_ref),
+          institution_ref: privateToken("institution", input.custodian_disclosure.institution_ref),
+          source_ref: privateToken("src", input.custodian_disclosure.source_ref)
+        }
+      },
+      foreign_equities: input.equity_disclosures.map((disclosure) => ({
+        ...disclosure,
+        disclosure_id: privateToken("disclosure", disclosure.disclosure_id),
+        source_ref: privateToken("src", disclosure.source_ref)
+      })),
+      requires_raw_identifiers_at_filing: true
+    },
+    source_set_hash: sourceSetHash,
+    warnings: [
+      "US-listed shares are treated as foreign investments, not as Indian STT-paid section 111A/112A equity.",
+      "Acquisition cost is the caller-supplied documented INR outflow; LazyTax does not manufacture a historical purchase rate or certify that cost basis.",
+      "Sale-value SBI TT buying rates are caller-supplied evidence; LazyTax validates the Rule 115 prior-month-end date but does not fetch or certify the rate.",
+      "Schedule FA uses the calendar year ending 31 December 2025, while capital gains use FY2025-26.",
+      "Raw foreign account, TIN/passport, institution-address and ownership fields remain required in the official ITR but are intentionally absent from this masked artifact.",
+      ...lossesRequiringReview > 0 ? [
+        "Capital losses require cross-source set-off and carry-forward review; no tax bridge entries were emitted."
+      ] : []
+    ],
+    unsupported_items: [
+      "RSUs, ESPPs, stock options and other employee equity",
+      "short sales, derivatives, margin and securities lending",
+      "splits, mergers, spin-offs, return of capital and other corporate actions",
+      "specific-identification or average-cost lot methods",
+      "foreign tax paid on capital gains",
+      "capital-loss set-off or carry-forward across other assets",
+      "currencies other than USD and countries other than the United States"
+    ],
+    official_rule_urls: [...US_STOCK_RULE_SOURCES],
+    disclaimer: PRIVATE_REVIEW_DISCLAIMER2
+  });
+}
+
+// packages/engine/dist/index.js
 var OFFICIAL_RULE_SOURCES = [
   "https://www.incometax.gov.in/iec/foportal/help/individual/return-applicable-1",
   "https://www.incometax.gov.in/iec/foportal/help/all-topics/e-filing-services/file-itr-2-online",
@@ -21372,9 +21825,9 @@ var FOREIGN_TAX_CREDIT_SOURCES = [
   "https://wmstatic-prd.incometaxindia.gov.in/web/guest/w/schedule_fsi",
   "https://wmstatic-prd.incometaxindia.gov.in/documents/20117/42998/Rule-128_2026-01-13_11-37-01_1c629b_en.pdf/145a3343-3b83-7223-7064-8fd9194f161c?download=true&t=1775731788761&version=6.0"
 ];
-var LOCAL_PRIVATE_SESSION_KEY = randomBytes(32);
+var LOCAL_PRIVATE_SESSION_KEY = randomBytes2(32);
 function disclaimerFor(dataMode) {
-  return dataMode === "local_private" ? PRIVATE_REVIEW_DISCLAIMER : DISCLAIMER;
+  return dataMode === "local_private" ? PRIVATE_REVIEW_DISCLAIMER2 : DISCLAIMER;
 }
 var UnsupportedTaxProfileError = class extends Error {
   constructor(message) {
@@ -21425,7 +21878,7 @@ function assertNormalizedDatasetIntegrity(dataset) {
   const evidenceIds = /* @__PURE__ */ new Set();
   const documentMetadata = /* @__PURE__ */ new Map();
   for (const item of dataset.evidence) {
-    if (dataset.data_mode === "local_private" && (!/^ev_[a-f0-9]{16}$/.test(item.evidence_id) || !/^doc_[a-f0-9]{16}$/.test(item.document_id) || !/^line_[a-f0-9]{16}$/.test(item.entry_id) || !/^line_[a-f0-9]{16}$/.test(item.locator) || !/^Private (?:form16|ais|broker_report|other) evidence$/.test(item.document_name) || !/^Private (?:salary|interest|dividend|foreign_dividend|listed_equity_stcg|listed_equity_ltcg|employer_tds|foreign_tax_withheld|foreign_capital_gains|other_foreign_income) evidence$/.test(item.label) || item.notes !== void 0)) {
+    if (dataset.data_mode === "local_private" && (!/^ev_[a-f0-9]{16}$/.test(item.evidence_id) || !/^doc_[a-f0-9]{16}$/.test(item.document_id) || !/^line_[a-f0-9]{16}$/.test(item.entry_id) || !/^line_[a-f0-9]{16}$/.test(item.locator) || !/^Private (?:form16|ais|broker_report|other) evidence$/.test(item.document_name) || !/^Private (?:salary|interest|dividend|foreign_dividend|listed_equity_stcg|listed_equity_ltcg|employer_tds|foreign_tax_withheld|foreign_capital_gains|other_foreign_income|foreign_stock_stcg|foreign_stock_ltcg) evidence$/.test(item.label) || item.notes !== void 0)) {
       throw new Error("Local-private dataset contains unmasked evidence metadata. Re-run local-private normalization.");
     }
     if (evidenceIds.has(item.evidence_id)) {
@@ -21454,12 +21907,12 @@ function inputDataMode(document) {
 function rawDocumentId(document) {
   return isSyntheticFixture(document) ? document.document_id : document.id;
 }
-function privateToken(prefix, value) {
-  const digest = createHmac("sha256", LOCAL_PRIVATE_SESSION_KEY).update(value).digest("hex").slice(0, 16);
+function privateToken2(prefix, value) {
+  const digest = createHmac2("sha256", LOCAL_PRIVATE_SESSION_KEY).update(value).digest("hex").slice(0, 16);
   return `${prefix}-${digest}`.replace("doc-", "doc_").replace("ev-", "ev_").replace("line-", "line_");
 }
 function safeInputIdentifier(dataMode, prefix, raw) {
-  return dataMode === "local_private" ? privateToken(prefix, raw) : raw;
+  return dataMode === "local_private" ? privateToken2(prefix, raw) : raw;
 }
 function fixtureKind(kind) {
   if (kind === "form16_like")
@@ -21515,7 +21968,7 @@ function normalizeFixtureData(documentsInput) {
   for (const document of parsedDocuments) {
     const documentId = rawDocumentId(document);
     const safeDocumentId = safeInputIdentifier(dataMode, "doc", documentId);
-    const fingerprint = canonicalize(document);
+    const fingerprint = canonicalize2(document);
     const priorFingerprint = documentFingerprints.get(documentId);
     if (priorFingerprint !== void 0) {
       if (priorFingerprint !== fingerprint) {
@@ -21575,11 +22028,11 @@ function normalizeFixtureData(documentsInput) {
       continue;
     }
     if (isLocalPrivateFixture(document)) {
-      const documentId = privateToken("doc", document.id);
+      const documentId = privateToken2("doc", document.id);
       for (const entry of document.entries) {
-        const entryToken = privateToken("line", `${document.id}:${entry.id}`);
+        const entryToken = privateToken2("line", `${document.id}:${entry.id}`);
         appendEvidence({
-          evidence_id: privateToken("ev", `${document.id}:${entry.id}`),
+          evidence_id: privateToken2("ev", `${document.id}:${entry.id}`),
           document_id: documentId,
           document_kind: document.kind,
           document_name: `Private ${document.kind} evidence`,
@@ -21613,14 +22066,14 @@ function normalizeFixtureData(documentsInput) {
   const rawTaxpayerRef = [...taxpayerRefs][0];
   if (!rawTaxpayerRef)
     throw new Error("Unable to establish one taxpayer reference.");
-  const sourceMaterial = canonicalize(documents);
-  const sourceSetHash = dataMode === "local_private" ? createHmac("sha256", LOCAL_PRIVATE_SESSION_KEY).update(sourceMaterial).digest("hex") : createHash("sha256").update(sourceMaterial).digest("hex");
+  const sourceMaterial = canonicalize2(documents);
+  const sourceSetHash = dataMode === "local_private" ? createHmac2("sha256", LOCAL_PRIVATE_SESSION_KEY).update(sourceMaterial).digest("hex") : createHash("sha256").update(sourceMaterial).digest("hex");
   if (dataMode === "local_private") {
     return NormalizedDatasetSchema.parse({
       data_mode: dataMode,
-      assessment_year: ASSESSMENT_YEAR,
+      assessment_year: ASSESSMENT_YEAR2,
       tax_year: "FY2025-26",
-      taxpayer_ref: privateToken("PRIVATE", rawTaxpayerRef),
+      taxpayer_ref: privateToken2("PRIVATE", rawTaxpayerRef),
       synthetic: false,
       evidence,
       warnings,
@@ -21631,12 +22084,12 @@ function normalizeFixtureData(documentsInput) {
         network: "none",
         identifiers: "masked"
       },
-      disclaimer: PRIVATE_REVIEW_DISCLAIMER
+      disclaimer: PRIVATE_REVIEW_DISCLAIMER2
     });
   }
   return NormalizedDatasetSchema.parse({
     data_mode: dataMode,
-    assessment_year: ASSESSMENT_YEAR,
+    assessment_year: ASSESSMENT_YEAR2,
     tax_year: "FY2025-26",
     taxpayer_ref: rawTaxpayerRef,
     synthetic: true,
@@ -21656,7 +22109,9 @@ var CATEGORY_ORDER = [
   "employer_tds",
   "foreign_tax_withheld",
   "foreign_capital_gains",
-  "other_foreign_income"
+  "other_foreign_income",
+  "foreign_stock_stcg",
+  "foreign_stock_ltcg"
 ];
 function aggregateSources(items) {
   const sources = /* @__PURE__ */ new Map();
@@ -21752,7 +22207,7 @@ function reconcileEvidence(datasetInput, confirmations = {}, toleranceInr = 1) {
   const unresolvedCategories = items.filter((item) => item.status === "conflict").map((item) => item.category);
   return ReconciliationResultSchema.parse({
     data_mode: dataset.data_mode,
-    assessment_year: ASSESSMENT_YEAR,
+    assessment_year: ASSESSMENT_YEAR2,
     taxpayer_ref: dataset.taxpayer_ref,
     tolerance_inr: toleranceInr,
     ready_for_calculation: unresolvedCategories.length === 0,
@@ -21778,7 +22233,9 @@ function taxInputsFromReconciliation(resultInput) {
     ...optionalAmount("employer_tds", "employer_tds_inr"),
     ...optionalAmount("foreign_tax_withheld", "foreign_tax_withheld_inr"),
     ...optionalAmount("foreign_capital_gains", "foreign_capital_gains_inr"),
-    ...optionalAmount("other_foreign_income", "other_foreign_income_inr")
+    ...optionalAmount("other_foreign_income", "other_foreign_income_inr"),
+    ...optionalAmount("foreign_stock_stcg", "foreign_stock_stcg_inr"),
+    ...optionalAmount("foreign_stock_ltcg", "foreign_stock_ltcg_inr")
   });
 }
 var OLD_SLABS = [
@@ -21804,7 +22261,7 @@ function slabTax(income, slabs) {
     return tax + Math.max(0, Math.min(income, upper) - slab.lower) * slab.rate;
   }, 0);
 }
-function rupee(value) {
+function rupee2(value) {
   return Math.round(value);
 }
 function assertSupported(profileInput, inputsInput, dataMode) {
@@ -21816,36 +22273,52 @@ function assertSupported(profileInput, inputsInput, dataMode) {
     employer_tds_inr: parsedInputs.employer_tds_inr ?? 0,
     foreign_tax_withheld_inr: parsedInputs.foreign_tax_withheld_inr ?? 0,
     foreign_capital_gains_inr: parsedInputs.foreign_capital_gains_inr ?? 0,
-    other_foreign_income_inr: parsedInputs.other_foreign_income_inr ?? 0
+    other_foreign_income_inr: parsedInputs.other_foreign_income_inr ?? 0,
+    foreign_stock_stcg_inr: parsedInputs.foreign_stock_stcg_inr ?? 0,
+    foreign_stock_ltcg_inr: parsedInputs.foreign_stock_ltcg_inr ?? 0
   };
   if (inputs.salary_inr === 0) {
     throw new UnsupportedTaxProfileError("This MVP requires positive salary income; it does not support a capital-gains-only or other-income-only return.");
   }
-  if (inputs.foreign_capital_gains_inr > 0 || inputs.other_foreign_income_inr > 0 || profile.has_foreign_capital_gains === true || profile.has_other_foreign_income === true || profile.has_foreign_assets_beyond_dividend_source === true) {
-    throw new UnsupportedTaxProfileError("This MVP supports foreign dividends only. Foreign capital gains, other foreign income, and additional foreign assets must be reviewed outside this deterministic profile.");
+  if (inputs.foreign_capital_gains_inr > 0 || inputs.other_foreign_income_inr > 0 || profile.has_other_foreign_income === true || profile.has_unsupported_foreign_assets === true) {
+    throw new UnsupportedTaxProfileError("Foreign capital gains supplied as an unstructured total, other foreign income, and unsupported foreign assets are outside this path. Use the dedicated US-stock tool for supported US common-stock gains.");
   }
   const hasForeignDividendCase = inputs.foreign_dividend_inr > 0 || inputs.foreign_tax_withheld_inr > 0;
-  if (hasForeignDividendCase) {
+  const hasUsStockGainCase = inputs.foreign_stock_stcg_inr > 0 || inputs.foreign_stock_ltcg_inr > 0;
+  const hasSupportedForeignCase = hasForeignDividendCase || hasUsStockGainCase;
+  if (hasSupportedForeignCase) {
     if (dataMode !== "local_private") {
-      throw new UnsupportedTaxProfileError("Foreign dividend and foreign-tax-credit calculations are available only in local_private mode.");
+      throw new UnsupportedTaxProfileError("Foreign dividend, foreign-tax-credit, and US-stock calculations are available only in local_private mode.");
     }
     if (!profile.has_foreign_income_or_assets) {
-      throw new UnsupportedTaxProfileError("The taxpayer profile must explicitly declare foreign income or assets for a foreign-dividend calculation.");
+      throw new UnsupportedTaxProfileError("The taxpayer profile must explicitly declare foreign income or assets for a supported foreign calculation.");
     }
     if (profile.is_resident_and_ordinarily_resident === false) {
-      throw new UnsupportedTaxProfileError("This foreign-dividend profile does not support a taxpayer who is explicitly not Resident and Ordinarily Resident (ROR).");
+      throw new UnsupportedTaxProfileError("This supported foreign-income profile does not support a taxpayer who is explicitly not Resident and Ordinarily Resident (ROR).");
     }
-    if (profile.has_foreign_capital_gains !== false || profile.has_other_foreign_income !== false || profile.has_foreign_assets_beyond_dividend_source !== false) {
-      throw new UnsupportedTaxProfileError("Confirm that foreign capital gains, other foreign income, and foreign assets beyond the dividend source are all absent before using this narrow profile.");
+    if (profile.has_other_foreign_income !== false) {
+      throw new UnsupportedTaxProfileError("Confirm that other foreign income and unsupported foreign assets are absent before using this profile.");
     }
-    if (inputs.foreign_dividend_inr === 0) {
+    if (hasUsStockGainCase && profile.has_unsupported_foreign_assets !== false) {
+      throw new UnsupportedTaxProfileError("Explicitly confirm that no unsupported foreign assets or transactions exist before using US-stock gain inputs.");
+    }
+    if (hasForeignDividendCase && !hasUsStockGainCase && profile.has_foreign_assets_beyond_dividend_source !== false) {
+      throw new UnsupportedTaxProfileError("Confirm that foreign assets beyond the dividend source are absent before using the dividend-only profile.");
+    }
+    if (hasForeignDividendCase && inputs.foreign_dividend_inr === 0) {
       throw new UnsupportedTaxProfileError("Foreign tax withheld cannot be credited without a positive foreign dividend included in Indian taxable income.");
     }
+    if (hasUsStockGainCase && profile.has_foreign_capital_gains !== true) {
+      throw new UnsupportedTaxProfileError("The taxpayer profile must explicitly declare foreign capital gains for US-stock gain inputs.");
+    }
+    if (!hasUsStockGainCase && profile.has_foreign_capital_gains === true) {
+      throw new UnsupportedTaxProfileError("The profile declares foreign capital gains, but no supported US-stock gain entries were supplied.");
+    }
   } else if (profile.has_foreign_income_or_assets) {
-    throw new UnsupportedTaxProfileError("The profile declares foreign income or assets, but this calculation contains no supported foreign dividend.");
+    throw new UnsupportedTaxProfileError("The profile declares foreign income or assets, but this calculation contains no supported foreign dividend or US-stock gain.");
   }
   const taxableLtcg = Math.max(0, inputs.listed_equity_ltcg_inr - 125e3);
-  const conservativeMaximum = inputs.salary_inr + inputs.interest_inr + inputs.dividend_inr + inputs.foreign_dividend_inr + inputs.listed_equity_stcg_inr + taxableLtcg;
+  const conservativeMaximum = inputs.salary_inr + inputs.interest_inr + inputs.dividend_inr + inputs.foreign_dividend_inr + inputs.listed_equity_stcg_inr + taxableLtcg + inputs.foreign_stock_stcg_inr + inputs.foreign_stock_ltcg_inr;
   if (conservativeMaximum > 5e6) {
     throw new UnsupportedTaxProfileError("This MVP stops at \u20B950 lakh because surcharge and marginal-relief calculations are not implemented. Use a supported synthetic fixture below that threshold.");
   }
@@ -21856,29 +22329,37 @@ function assertSupported(profileInput, inputsInput, dataMode) {
 }
 function calculateGrossTax(regime, inputs) {
   const standardDeduction = Math.min(inputs.salary_inr, regime === "new" ? 75e3 : 5e4);
-  const normalIncome = Math.max(0, inputs.salary_inr - standardDeduction + inputs.interest_inr + inputs.dividend_inr + inputs.foreign_dividend_inr);
+  const normalIncome = Math.max(0, inputs.salary_inr - standardDeduction + inputs.interest_inr + inputs.dividend_inr + inputs.foreign_dividend_inr + inputs.foreign_stock_stcg_inr);
   const taxableStcg = inputs.listed_equity_stcg_inr;
   const taxableLtcg = Math.max(0, inputs.listed_equity_ltcg_inr - 125e3);
-  const totalTaxableIncome = normalIncome + taxableStcg + taxableLtcg;
+  const foreignStockStcg = inputs.foreign_stock_stcg_inr;
+  const foreignStockLtcg = inputs.foreign_stock_ltcg_inr;
+  const totalTaxableIncome = normalIncome + taxableStcg + taxableLtcg + foreignStockLtcg;
   const calculatedSlabTax = slabTax(normalIncome, regime === "new" ? NEW_SLABS : OLD_SLABS);
   const stcgTax = taxableStcg * 0.2;
   const ltcgTax = taxableLtcg * 0.125;
+  const foreignStockStcgTax = Math.max(0, calculatedSlabTax - slabTax(normalIncome - foreignStockStcg, regime === "new" ? NEW_SLABS : OLD_SLABS));
+  const foreignStockLtcgTax = foreignStockLtcg * 0.125;
   const rebate = regime === "new" && totalTaxableIncome <= 12e5 ? Math.min(6e4, calculatedSlabTax) : regime === "old" && totalTaxableIncome <= 5e5 ? Math.min(12500, calculatedSlabTax) : 0;
-  const taxBeforeCess = calculatedSlabTax - rebate + stcgTax + ltcgTax;
+  const taxBeforeCess = calculatedSlabTax - rebate + stcgTax + ltcgTax + foreignStockLtcgTax;
   const cess = taxBeforeCess * 0.04;
   return {
     standardDeduction,
     normalIncome,
     taxableStcg,
     taxableLtcg,
+    foreignStockStcg,
+    foreignStockLtcg,
     totalTaxableIncome,
     calculatedSlabTax,
     stcgTax,
     ltcgTax,
+    foreignStockStcgTax,
+    foreignStockLtcgTax,
     rebate,
     taxBeforeCess,
     cess,
-    totalTax: rupee(taxBeforeCess + cess)
+    totalTax: rupee2(taxBeforeCess + cess)
   };
 }
 function roundToNearestTen(value) {
@@ -21898,26 +22379,37 @@ function calculateRegime(regime, profileInput, inputsInput, dataMode) {
   const estimatedBalancePayable = netTaxAfterCredits > 0 ? roundToNearestTen(netTaxAfterCredits) : 0;
   const estimatedRefund = netTaxAfterCredits < 0 ? roundToNearestTen(-netTaxAfterCredits) : 0;
   const hasForeignDividend = inputs.foreign_dividend_inr > 0;
-  const warnings = hasForeignDividend ? [
-    profile.is_resident_and_ordinarily_resident === true ? "The profile records ROR confirmation, but residential status must still be re-checked before filing." : "ROR status has not been confirmed. This estimate is conditional; confirm Resident and Ordinarily Resident status before relying on foreign-dividend treatment.",
-    "Any FTC estimate is conditional on eligible, undisputed foreign tax, INR conversion, supporting evidence, Schedule FSI/TR disclosures, and timely Form 67 compliance.",
+  const hasUsStockGains = inputs.foreign_stock_stcg_inr > 0 || inputs.foreign_stock_ltcg_inr > 0;
+  const hasSupportedForeignIncome = hasForeignDividend || hasUsStockGains;
+  const warnings = hasSupportedForeignIncome ? [
+    profile.is_resident_and_ordinarily_resident === true ? "The profile records ROR confirmation, but residential status must still be re-checked before filing." : "ROR status has not been confirmed. This estimate is conditional; confirm Resident and Ordinarily Resident status before relying on foreign-income treatment.",
+    ...hasForeignDividend ? [
+      "Any FTC estimate is conditional on eligible, undisputed foreign tax, INR conversion, supporting evidence, Schedule FSI/TR disclosures, and timely Form 67 compliance."
+    ] : [],
+    ...hasUsStockGains ? [
+      "US-stock STCG is included at normal slab rates and US-stock LTCG is estimated under section 112 at 12.5%; confirm documented INR acquisition costs, prior-month-end SBI TT sale rates, lot classification, Schedule CG/FSI/FA, and absence of unsupported corporate actions before filing."
+    ] : [],
     ...inputs.foreign_tax_withheld_inr > foreignTaxCredit ? [
-      `\u20B9${rupee(inputs.foreign_tax_withheld_inr - foreignTaxCredit).toLocaleString("en-IN")} of reported foreign tax withheld is not included in this conservative FTC estimate.`
+      `\u20B9${rupee2(inputs.foreign_tax_withheld_inr - foreignTaxCredit).toLocaleString("en-IN")} of reported foreign tax withheld is not included in this conservative FTC estimate.`
     ] : []
   ] : [];
   return {
     regime,
-    standard_deduction_inr: rupee(gross.standardDeduction),
-    normal_rate_income_inr: rupee(gross.normalIncome),
-    taxable_stcg_inr: rupee(gross.taxableStcg),
-    taxable_ltcg_inr: rupee(gross.taxableLtcg),
-    total_taxable_income_inr: rupee(gross.totalTaxableIncome),
-    slab_tax_inr: rupee(gross.calculatedSlabTax),
-    stcg_tax_inr: rupee(gross.stcgTax),
-    ltcg_tax_inr: rupee(gross.ltcgTax),
-    rebate_87a_inr: rupee(gross.rebate),
-    tax_before_cess_inr: rupee(gross.taxBeforeCess),
-    health_education_cess_inr: rupee(gross.cess),
+    standard_deduction_inr: rupee2(gross.standardDeduction),
+    normal_rate_income_inr: rupee2(gross.normalIncome),
+    taxable_stcg_inr: rupee2(gross.taxableStcg),
+    taxable_ltcg_inr: rupee2(gross.taxableLtcg),
+    foreign_stock_stcg_inr: rupee2(gross.foreignStockStcg),
+    foreign_stock_ltcg_inr: rupee2(gross.foreignStockLtcg),
+    total_taxable_income_inr: rupee2(gross.totalTaxableIncome),
+    slab_tax_inr: rupee2(gross.calculatedSlabTax),
+    stcg_tax_inr: rupee2(gross.stcgTax),
+    ltcg_tax_inr: rupee2(gross.ltcgTax),
+    foreign_stock_stcg_tax_inr: rupee2(gross.foreignStockStcgTax),
+    foreign_stock_ltcg_tax_inr: rupee2(gross.foreignStockLtcgTax),
+    rebate_87a_inr: rupee2(gross.rebate),
+    tax_before_cess_inr: rupee2(gross.taxBeforeCess),
+    health_education_cess_inr: rupee2(gross.cess),
     total_tax_inr: gross.totalTax,
     gross_tax_inr: gross.totalTax,
     foreign_dividend_income_inr: inputs.foreign_dividend_inr,
@@ -21929,18 +22421,23 @@ function calculateRegime(regime, profileInput, inputsInput, dataMode) {
     estimated_refund_inr: estimatedRefund,
     rounding_unit_inr: 10,
     form67_required_for_ftc_claim: foreignTaxCredit > 0,
-    ror_confirmation_required: hasForeignDividend && profile.is_resident_and_ordinarily_resident !== true,
+    ror_confirmation_required: hasSupportedForeignIncome && profile.is_resident_and_ordinarily_resident !== true,
     effective_rate_percent: gross.totalTaxableIncome === 0 ? 0 : Math.round(gross.totalTax / gross.totalTaxableIncome * 1e4) / 100,
     assumptions: [
-      hasForeignDividend && profile.is_resident_and_ordinarily_resident === true ? "Resident and Ordinarily Resident individual under age 60 for AY 2026-27; foreign income is limited to dividends, with no foreign capital gains, other foreign income, or additional foreign assets." : hasForeignDividend ? "Conditional resident-individual estimate under age 60 for AY 2026-27; ROR is not yet confirmed, and foreign income is limited to dividends with all other foreign categories explicitly absent." : "Resident individual under age 60 for AY 2026-27; no business, profession, foreign, house-property, crypto, or other special-rate income.",
+      hasSupportedForeignIncome && profile.is_resident_and_ordinarily_resident === true ? "Resident and Ordinarily Resident individual under age 60 for AY 2026-27; foreign income is limited to supported dividends and ordinary US common-stock investment gains." : hasSupportedForeignIncome ? "Conditional resident-individual estimate under age 60 for AY 2026-27; ROR is not yet confirmed, and foreign income is limited to supported dividends and ordinary US common-stock investment gains." : "Resident individual under age 60 for AY 2026-27; no business, profession, foreign, house-property, crypto, or other special-rate income.",
       "Only the standard deduction is applied: up to \u20B950,000 under old regime and \u20B975,000 under new regime.",
       "Section 111A listed-equity STCG is estimated at 20%; section 112A listed-equity LTCG is estimated at 12.5% above the aggregate \u20B91,25,000 threshold.",
+      hasUsStockGains ? "US-listed common-stock STCG is included in normal slab-rate income; US-listed common-stock LTCG is estimated at 12.5% under section 112 without the section 112A threshold." : "No US-stock capital gain is included.",
       "Section 87A rebate, when eligible, reduces normal slab-rate tax only; it does not reduce special-rate capital-gains tax.",
       hasForeignDividend ? "FTC is conservatively limited to the lower of reported foreign tax withheld and the incremental gross Indian tax produced by the foreign dividend; treaty-specific rates, disputed tax, and carry-forward are not computed." : "No foreign tax credit is computed because no foreign dividend or foreign tax withheld was supplied.",
       "Health and Education Cess is estimated at 4%. Surcharge, marginal relief above \u20B912 lakh, losses, set-off, and interest are outside this MVP; the final balance or refund estimate is rounded to the nearest \u20B910."
     ],
     warnings,
-    source_urls: hasForeignDividend ? [...OFFICIAL_RULE_SOURCES, ...FOREIGN_TAX_CREDIT_SOURCES] : [...OFFICIAL_RULE_SOURCES],
+    source_urls: [
+      ...OFFICIAL_RULE_SOURCES,
+      ...hasForeignDividend ? FOREIGN_TAX_CREDIT_SOURCES : [],
+      ...hasUsStockGains ? US_STOCK_RULE_SOURCES : []
+    ],
     disclaimer: disclaimerFor(dataMode)
   };
 }
@@ -21951,7 +22448,7 @@ function compareTaxRegimes(profileInput, inputsInput, dataMode = "synthetic_demo
   const newRegime = calculateRegime("new", profile, inputs, dataMode);
   const lowerEstimatedRegime = oldRegime.net_tax_after_credits_inr <= newRegime.net_tax_after_credits_inr ? "old" : "new";
   return RegimeComparisonSchema.parse({
-    assessment_year: ASSESSMENT_YEAR,
+    assessment_year: ASSESSMENT_YEAR2,
     old_regime: oldRegime,
     new_regime: newRegime,
     lower_estimated_regime: lowerEstimatedRegime,
@@ -21960,12 +22457,12 @@ function compareTaxRegimes(profileInput, inputsInput, dataMode = "synthetic_demo
     disclaimer: disclaimerFor(dataMode)
   });
 }
-function canonicalize(value) {
+function canonicalize2(value) {
   if (Array.isArray(value))
-    return `[${value.map(canonicalize).join(",")}]`;
+    return `[${value.map(canonicalize2).join(",")}]`;
   if (value !== null && typeof value === "object") {
     const object3 = value;
-    return `{${Object.keys(object3).sort().map((key) => `${JSON.stringify(key)}:${canonicalize(object3[key])}`).join(",")}}`;
+    return `{${Object.keys(object3).sort().map((key) => `${JSON.stringify(key)}:${canonicalize2(object3[key])}`).join(",")}}`;
   }
   return JSON.stringify(value);
 }
@@ -21988,11 +22485,11 @@ function generateTaxProofPack(args) {
     }
   }
   const recomputedReconciliation = reconcileEvidence(dataset, confirmations, reconciliation.tolerance_inr);
-  if (canonicalize(recomputedReconciliation) !== canonicalize(reconciliation)) {
+  if (canonicalize2(recomputedReconciliation) !== canonicalize2(reconciliation)) {
     throw new Error("Reconciliation integrity check failed. The supplied reconciliation is not reproducible from the source evidence and recorded confirmations.");
   }
   const recomputedCalculation = compareTaxRegimes(profile, taxInputsFromReconciliation(recomputedReconciliation), dataset.data_mode);
-  if (canonicalize(recomputedCalculation) !== canonicalize(calculation)) {
+  if (canonicalize2(recomputedCalculation) !== canonicalize2(calculation)) {
     throw new Error("Calculation integrity check failed. The supplied calculation is not reproducible from the bound reconciliation and taxpayer profile.");
   }
   const generatedAt = args.generatedAt ?? (/* @__PURE__ */ new Date()).toISOString();
@@ -22000,7 +22497,7 @@ function generateTaxProofPack(args) {
     schema_version: "0.1.0",
     generated_at: generatedAt,
     data_mode: dataset.data_mode,
-    assessment_year: ASSESSMENT_YEAR,
+    assessment_year: ASSESSMENT_YEAR2,
     taxpayer_ref: dataset.taxpayer_ref,
     synthetic: dataset.synthetic,
     supported_profile: profile,
@@ -22011,10 +22508,10 @@ function generateTaxProofPack(args) {
     ...dataset.data_mode === "local_private" ? { privacy_guarantees: dataset.privacy_guarantees } : {},
     disclaimer: disclaimerFor(dataset.data_mode)
   };
-  const datasetHash = createHash("sha256").update(canonicalize(dataset)).digest("hex");
-  const reconciliationHash = createHash("sha256").update(canonicalize(recomputedReconciliation)).digest("hex");
-  const calculationHash = createHash("sha256").update(canonicalize(recomputedCalculation)).digest("hex");
-  const canonicalPayloadHash = createHash("sha256").update(canonicalize(payload)).digest("hex");
+  const datasetHash = createHash("sha256").update(canonicalize2(dataset)).digest("hex");
+  const reconciliationHash = createHash("sha256").update(canonicalize2(recomputedReconciliation)).digest("hex");
+  const calculationHash = createHash("sha256").update(canonicalize2(recomputedCalculation)).digest("hex");
+  const canonicalPayloadHash = createHash("sha256").update(canonicalize2(payload)).digest("hex");
   return TaxProofPackSchema.parse({
     ...payload,
     integrity: {
@@ -22054,7 +22551,9 @@ var ConfirmationSchema = external_exports.object({
   employer_tds: external_exports.number().int().nonnegative().max(5e7).optional(),
   foreign_tax_withheld: external_exports.number().int().nonnegative().max(5e7).optional(),
   foreign_capital_gains: external_exports.number().int().nonnegative().max(5e7).optional(),
-  other_foreign_income: external_exports.number().int().nonnegative().max(5e7).optional()
+  other_foreign_income: external_exports.number().int().nonnegative().max(5e7).optional(),
+  foreign_stock_stcg: external_exports.number().int().nonnegative().max(5e7).optional(),
+  foreign_stock_ltcg: external_exports.number().int().nonnegative().max(5e7).optional()
 }).strict();
 var BUILD_WEEK_FIXTURE_FILES = [
   "form16.synthetic.json",
@@ -22172,6 +22671,31 @@ function createLazyTaxServer() {
         return actionableError(
           error2,
           "Use only the exact documents the user authorized, keep one FY2025-26 taxpayer per request, and exclude secrets or non-tax personal fields."
+        );
+      }
+    }
+  );
+  server.registerTool(
+    "lazytax_compute_us_stock_investments",
+    {
+      title: "Compute US Stock Investment Tax Facts",
+      description: "Deterministically match ordinary US common-stock investment trades using FIFO, use documented INR acquisition costs, validate prior-month-end SBI TT buying-rate dates for sales, classify gains as short-term normal-rate or long-term section 112, prepare masked Schedule CG/FSI/FA facts, and emit source-bound bridge entries for the private tax workflow. Supports USD investment trades for an Indian ROR individual in FY2025-26 only. It rejects missing lots or cost/rate evidence, incorrect FX dates, RSUs/ESPPs/options, shorts, derivatives, corporate actions, foreign capital-gains tax, and loss cases requiring cross-asset set-off. It never files a return or fetches exchange rates.",
+      inputSchema: UsStockComputationInputSchema,
+      outputSchema: UsStockComputationResultSchema,
+      annotations: READ_ONLY_ANNOTATIONS
+    },
+    async (input) => {
+      try {
+        const output = computeUsStockInvestments(input);
+        return textResult(
+          output,
+          "summary",
+          `Matched ${output.matched_lots.length} US-stock lot(s), retained ${output.open_lots.length} open lot(s), and produced ${output.tax_bridge_entries.length} tax bridge entr${output.tax_bridge_entries.length === 1 ? "y" : "ies"}. ${output.ready_for_supported_tax_calculation ? "The supported gain result is ready for private tax reconciliation." : "Loss/set-off review is required before tax calculation."}`
+        );
+      } catch (error2) {
+        return actionableError(
+          error2,
+          "Provide complete FIFO acquisition history with documented INR costs, exact broker source references, verified prior-month-end SBI TT buying rates for FY2025-26 sales, and calendar-2025 Schedule FA rows for ordinary USD common-stock investments."
         );
       }
     }

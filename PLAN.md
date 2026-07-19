@@ -82,7 +82,7 @@ case outside the implemented golden tests.
 - Claude Code plugin and provider abstraction.
 - Real PDF/OCR ingestion and production broker integrations.
 - ITR JSON upload claims, direct filing, ERI, portal automation and e-verification.
-- ITR-1/2/3 breadth, complex deductions, house property and foreign schedules.
+- ITR-1/2/3 breadth, complex deductions, house property and foreign schedules beyond the supported US-common-stock preparation slice.
 - Public marketplace review; judges receive local install instructions.
 
 ## Build Week architecture
@@ -215,7 +215,7 @@ Primary persona (locked): **"Arjun, 27, SWE + Zerodha investor, files ITR-2, hat
 - MVP interface experiments: hosted LazyTax MCP server, Codex plugin and Claude Code plugin, all backed by the canonical case API. No filing/submission tool is exposed.
 
 **Out of Wave 1 (explicitly):**
-- ITR-3 / F&O / intraday (Wave 2, Aug), ITR-4/44ADA (Wave 2), foreign stocks beyond a "we'll email you a Schedule FA guide" capture, direct broker API logins, full ERI e-filing, notice management, voice/WhatsApp, multi-PAN/family, year-round planning, native mobile app.
+- ITR-3 / F&O / intraday (Wave 2, Aug), ITR-4/44ADA (Wave 2), foreign employee equity/corporate actions/loss set-off beyond the supported US-common-stock engine, direct broker API logins, full ERI e-filing, notice management, voice/WhatsApp, multi-PAN/family, year-round planning, native mobile app.
 
 ### Wave 2 — "The F&O Drop", target Aug 10–31
 ITR-3: F&O as non-speculative business income (code 21010), intraday speculative (21009), Trading-Account disclosure (defective-return trap), Form 10-IEA regime opt-out, 44ADA presumptive for freelancers, Upstox/Angel One parsers.

@@ -18,11 +18,19 @@ Input: normalized evidence and optional user-confirmed resolution records.
 
 Expected output: matched, conflicting, missing, and unsupported groups across supported income and credit categories; materiality/consequences when deterministically available; stable reconciliation identifiers.
 
+## `lazytax_compute_us_stock_investments`
+
+Input: complete FIFO acquisition and FY2025-26 sale facts for ordinary USD common-stock investments; documented INR acquisition cost for every buy; a verified SBI TT buying rate and prior-month-end rate date for every sale; calendar-2025 Schedule FA A2/A3 values; explicit ROR, investment-classification, and unsupported-feature gates. Use opaque trade, account and source references.
+
+Expected output: masked matched/open lots, short-term normal-rate gain, long-term section 112 gain, Schedule CG/FSI/FA preparation facts, warnings, a source-set hash, and `tax_bridge_entries`. Never invent or fetch a missing FX rate. If `ready_for_supported_tax_calculation` is false, do not pass bridge entries into the tax workflow.
+
+To continue, add the returned `tax_bridge_entries` unchanged to a private derived-evidence document, normalize it with `lazytax_normalize_private_tax_facts`, then reconcile normally. This preserves the dedicated engine's output hash as the aggregate source locator.
+
 ## `lazytax_calculate_compare_regimes`
 
 Input: a calculation-ready reconciliation plus the supported taxpayer profile.
 
-Expected output: AY 2026-27 calculation trace, both supported regime results, TDS/conditional FTC settlement in private mode, input lineage, warnings, unsupported fields, and status. Repeat numbers exactly as returned.
+Expected output: AY 2026-27 calculation trace, both supported regime results, TDS/conditional FTC settlement, supported US-stock STCG/LTCG treatment in private mode, input lineage, warnings, unsupported fields, and status. Repeat numbers exactly as returned.
 
 ## `lazytax_generate_tax_proof_pack`
 

@@ -7,6 +7,7 @@ import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js"
 
 const expectedTools = [
   "lazytax_calculate_compare_regimes",
+  "lazytax_compute_us_stock_investments",
   "lazytax_generate_tax_proof_pack",
   "lazytax_normalize_fixture_data",
   "lazytax_normalize_private_tax_facts",
@@ -28,7 +29,10 @@ const supportedProfile = {
 async function callStructured(client, name, arguments_) {
   const result = await client.callTool({
     name,
-    arguments: { ...arguments_, response_format: "json" }
+    arguments:
+      name === "lazytax_compute_us_stock_investments"
+        ? arguments_
+        : { ...arguments_, response_format: "json" }
   });
   assert.notEqual(result.isError, true, `${name} returned an MCP error`);
   assert.ok(result.structuredContent, `${name} omitted structuredContent`);
@@ -51,6 +55,67 @@ async function runHappyPath(pluginRoot, label) {
       tools.tools.map((tool) => tool.name).sort(),
       expectedTools
     );
+
+    const usStockResult = await callStructured(client, "lazytax_compute_us_stock_investments", {
+      data_mode: "local_private",
+      assessment_year: "2026-27",
+      financial_year: "FY2025-26",
+      schedule_fa_calendar_year_end: "2025-12-31",
+      country_code: "002",
+      currency: "USD",
+      is_resident_and_ordinarily_resident: true,
+      asset_classification: "investment",
+      lot_method: "FIFO",
+      conversion_policy: "documented_inr_cost_and_rule115_sale",
+      trades: [
+        {
+          trade_id: "smoke-buy",
+          ticker: "AAPL",
+          trade_date: "2023-01-10",
+          side: "buy",
+          quantity: 1,
+          price_usd: 100,
+          fees_usd: 0,
+          documented_acquisition_cost_inr: 8_000,
+          source_ref: "SRC-SMOKE-BUY"
+        },
+        {
+          trade_id: "smoke-sell",
+          ticker: "AAPL",
+          trade_date: "2025-04-11",
+          side: "sell",
+          quantity: 1,
+          price_usd: 150,
+          fees_usd: 0,
+          sbi_tt_buying_rate_inr_per_usd: 85,
+          fx_rate_date: "2025-03-31",
+          source_ref: "SRC-SMOKE-SELL"
+        }
+      ],
+      equity_disclosures: [
+        {
+          disclosure_id: "smoke-fa-aapl",
+          ticker: "AAPL",
+          entity_name: "Apple Inc.",
+          acquired_on: "2023-01-10",
+          initial_value_inr: 8_000,
+          peak_value_inr: 12_750,
+          closing_value_inr: 0,
+          gross_credits_inr: 0,
+          gross_sale_proceeds_inr: 12_750,
+          source_ref: "SRC-SMOKE-FA"
+        }
+      ],
+      has_corporate_actions: false,
+      has_employee_equity: false,
+      has_derivatives: false,
+      has_short_sales: false,
+      foreign_tax_on_capital_gains_inr: 0
+    });
+    assert.equal(usStockResult.ready_for_supported_tax_calculation, true);
+    assert.equal(usStockResult.schedule_cg.long_term_section_112_gain_inr, 4_750);
+    assert.match(usStockResult.matched_lots[0].buy_trade_id, /^trade_[a-f0-9]{16}$/);
+    assert.match(usStockResult.matched_lots[0].buy_source_ref, /^src_[a-f0-9]{16}$/);
 
     const privateDataset = await callStructured(client, "lazytax_normalize_private_tax_facts", {
       local_private_processing_consent: true,
@@ -158,7 +223,7 @@ async function runHappyPath(pluginRoot, label) {
     assert.match(proof.integrity.canonical_payload_hash, /^[a-f0-9]{64}$/);
 
     process.stdout.write(
-      `LazyTax ${label} plugin smoke passed: 5 tools, masked private settlement, conflict gate, deterministic comparison and proof pack.\n`
+      `LazyTax ${label} plugin smoke passed: 6 tools, US-stock FIFO/FX bridge, masked private settlement, conflict gate, deterministic comparison and proof pack.\n`
     );
   } finally {
     await client.close();

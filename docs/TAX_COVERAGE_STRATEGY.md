@@ -71,8 +71,11 @@ and [CBDT circulars](https://incometaxindia.gov.in/Pages/communications/circular
 ### Phase 0 — current Build Week proof
 
 One resident salaried AY 2026-27 profile, savings interest/dividends, domestic
-listed-equity gains, synthetic documents, reconciliation, deterministic regime
-comparison, and Tax Proof Pack. No filing.
+listed-equity gains, private foreign dividends/FTC, and an initial ROR US
+common-stock investment slice with FIFO matching, documented INR acquisition
+costs, evidenced prior-month-end SBI TT sale-rate dates and Schedule CG/FSI/FA
+preparation. Synthetic judge documents remain the public
+demo; private evidence is separately pseudonymized. No filing.
 
 ### Phase 1 — production individual filing foundation
 
@@ -87,7 +90,7 @@ comparison, and Tax Proof Pack. No filing.
 
 - ITR-3/ITR-4, F&O/intraday, books/presumptive income, 44AD/44ADA/44AE.
 - ESOP/RSU, crypto/VDA, gaming, property/gold/debt assets.
-- NRI/RNOR, foreign income/assets, DTAA/TRC/FTC workflows, Schedule FA/FSI/TR.
+- NRI/RNOR and foreign income/assets beyond ordinary US common-stock investments; complete DTAA/TRC/FTC workflows beyond the current dividend credit and CG/FSI/FA preparation path.
 - Clubbing, agricultural-income integration, relief, brought-forward losses,
   revised/belated/updated returns, and defective-return preflight.
 - Human-review routing for audit, valuation, treaty, and judgment-heavy cases.
@@ -118,4 +121,3 @@ government-utility cross-check, failure modes, and named reviewer are all green.
 The near-term win is not “more tax law than ClearTax.” It is **more proof per
 supported filing**. Once that trust kernel is measurable, breadth becomes a
 repeatable engineering process instead of a collection of fragile prompts.
-

@@ -10,6 +10,7 @@ identifiers in tool outputs, and produces a source-indexed Tax Proof Pack.
 
 **OpenAI Build Week track:** Apps for Your Life  
 **Status:** Build Week MVP with synthetic judge mode and private review mode
+
 **Important:** LazyTax does not file a return and is not tax, legal or financial
 advice. Never provide tax-portal credentials or OTPs. Private files are handled
 only when the user explicitly asks Codex to review those exact files.
@@ -43,16 +44,21 @@ The deterministic calculation deliberately supports only:
 - One domestic salary source.
 - Savings interest and dividends.
 - STT-paid domestic listed-equity STCG/LTCG.
+- Ordinary USD US common-stock investments with FIFO lots, documented INR
+  acquisition costs, evidenced prior-month-end SBI TT sale rates, Schedule
+  CG/FSI/FA preparation, and no unsupported corporate actions or capital-loss
+  set-off.
 - Income below the surcharge threshold and outside the unsupported marginal-
   relief band.
 - No deduction beyond the regime's standard deduction.
 - The three committed synthetic JSON fixtures, or explicitly authorized private
   facts normalized with identifiers pseudonymized.
 
-Business/professional income, multiple employers, house property, foreign
-income/assets, crypto, F&O/intraday, loss carry-forward, surcharge cases,
-filing actions fail closed. Private documents do not fail merely because they
-contain PII; unsupported tax categories are surfaced as review flags.
+Business/professional income, multiple employers, house property, crypto,
+F&O/intraday, foreign employee equity, corporate actions, foreign capital-loss
+set-off, surcharge cases and filing actions fail closed. Private documents do
+not fail merely because they contain PII; unsupported tax categories are
+surfaced as review flags.
 
 ## What works
 
@@ -63,6 +69,8 @@ contain PII; unsupported tax categories are surfaced as review flags.
 - Source normalization with stable evidence IDs and locators.
 - Conflict-preserving reconciliation with explicit user confirmation.
 - Deterministic old/new regime comparison for the supported profile.
+- Deterministic US-stock FIFO matching, Rule 115 FX-date validation, foreign
+  STCG/LTCG tax bridge, and Schedule CG/FSI/FA preparation.
 - Evidence index, decisions, assumptions, rule sources and SHA-256 integrity in
   a structured Tax Proof Pack.
 - Three synthetic source documents, golden tests, ten MCP evals and an evidence
@@ -107,11 +115,12 @@ See [JUDGE_GUIDE.md](JUDGE_GUIDE.md) for the complete judge path and
 |---|---|
 | `lazytax_normalize_fixture_data` | Load/validate the bundled demo or supplied synthetic fixture objects and preserve provenance |
 | `lazytax_normalize_private_tax_facts` | Pseudonymize tax facts from explicitly authorized private documents and return masked evidence |
+| `lazytax_compute_us_stock_investments` | Match supported US-stock lots and prepare source-linked CG/FSI/FA bridge facts |
 | `lazytax_reconcile_evidence` | Compare source totals, surface conflicts and apply explicit confirmations |
 | `lazytax_calculate_compare_regimes` | Deterministically calculate the supported old/new-regime estimates |
 | `lazytax_generate_tax_proof_pack` | Generate the structured evidence and calculation artifact |
 
-All five tools are read-only and non-destructive. Normalization, reconciliation
+All six tools are read-only and non-destructive. Normalization, reconciliation
 and calculation are idempotent; proof-pack generation is timestamped and
 therefore marked non-idempotent despite having no side effects. The local stdio
 server logs only failures to stderr.

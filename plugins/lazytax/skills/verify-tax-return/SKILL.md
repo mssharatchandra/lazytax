@@ -46,6 +46,13 @@ An explicit request such as “calculate my tax from these files” authorizes r
 
 ### 3. Reconcile sources
 
+Before general reconciliation, when authorized documents contain US stocks:
+
+- Separate FY2025-26 income/trades from calendar-2025 Schedule FA holdings. Do not include an FY2026-27/AY2027-28 workbook in AY2026-27 totals.
+- Establish ROR status, investment rather than business classification, complete FIFO acquisition lots, and whether RSUs/ESPPs/options, shorts, derivatives, losses, corporate actions, gifts, inheritance, multiple currencies, or foreign capital-gains tax exist.
+- Invoke `lazytax_compute_us_stock_investments` only when every required gate, documented INR acquisition cost, and sale-rate input is evidenced. Never invent a purchase cost, and never substitute a broker, RBI, card, Google, or model-inferred rate for a missing prior-month-end SBI TT buying rate on a sale.
+- Inspect the returned lot ledger and Schedule CG/FSI/FA preparation. When `ready_for_supported_tax_calculation` is true, pass its `tax_bridge_entries` unchanged into private normalization as derived evidence. When false, preserve the output as partial preparation and stop the affected tax calculation.
+
 - Invoke `lazytax_reconcile_evidence` with normalized evidence, not manually retyped amounts.
 - Group results into matched, conflicting, missing, and unsupported.
 - For every conflict, show both values and locators, materiality if the tool returns it, and the consequence of leaving it unresolved.
@@ -58,7 +65,7 @@ An explicit request such as “calculate my tax from these files” authorizes r
 - Pass normalized evidence plus explicit resolutions. Do not pass hidden assumptions.
 - Report assessment year, rule-set version, input lineage, both supported regime results, warnings, unsupported fields, and status.
 - Never reconstruct, adjust, or “sanity-correct” a numeric result in prose. Do not describe the lower result as a recommendation.
-- Do not call a return “verified,” “ready,” or “complete” while a blocking issue, unsupported field, or material unresolved discrepancy remains. When foreign income/assets or another unsupported category exists, clearly label any supported calculation as partial and never present it as tax payable.
+- Do not call a return “verified,” “ready,” or “complete” while a blocking issue, unsupported field, or material unresolved discrepancy remains. Supported US-stock results must repeat the lot method, FX policy, Schedule FA calendar year and remaining unsupported items.
 
 ### 5. Generate the Tax Proof Pack
 
