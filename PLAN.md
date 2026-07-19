@@ -7,6 +7,30 @@
 > **Submission:** Apps for Your Life · **Deadline:** 21 Jul 2026, 5:00 PM PDT
 > (22 Jul, 5:30 AM IST) · **Status:** MVP CODE COMPLETE; SUBMISSION ASSETS PENDING
 
+## Production robustness and distribution addendum — 19 Jul 2026
+
+The plugin-first thesis remains locked, but production breadth follows a gated
+sequence: (1) make the narrow proof kernel release-grade, (2) publish a
+skills-only plugin, (3) deploy and submit a secured public MCP-backed plugin,
+(4) expand personal income-tax coverage rule-by-rule, and only then (5) build
+separate GST/TDS/corporate verticals. “All Indian tax laws” is not an MVP claim.
+
+Four source-of-truth documents now govern this path:
+
+- [`docs/ROBUSTNESS_AUDIT.md`](docs/ROBUSTNESS_AUDIT.md) — current strengths,
+  production blockers, and hardening definition.
+- [`docs/ANALYTICS_AND_PRIVACY.md`](docs/ANALYTICS_AND_PRIVACY.md) — opt-in,
+  metadata-only PostHog protocol; no replay/autocapture on tax surfaces.
+- [`docs/PLUGIN_DIRECTORY_RELEASE.md`](docs/PLUGIN_DIRECTORY_RELEASE.md) —
+  skills-only and public MCP submission gates for the OpenAI Plugins Directory.
+- [`docs/TAX_COVERAGE_STRATEGY.md`](docs/TAX_COVERAGE_STRATEGY.md) — ClearTax
+  benchmark, right-to-win thesis, rules supply chain, and sequenced tax coverage.
+
+The Build Week local plugin remains zero-telemetry and local-first. No PostHog
+SDK is added until consent, privacy notice, vendor/region approval, allowlisted
+gateway, deletion, and payload tests exist. The target contract lives in
+`.telemetry/tracking-plan.yaml`.
+
 ## Build Week outcome
 
 Ship **LazyTax for Codex**, a real installable Codex/ChatGPT plugin that turns a
@@ -282,14 +306,22 @@ Launch posture is **DPDP-ready**, not a self-certified claim of compliance. Indi
 8. **Detect and respond:** metadata-only security logs retained for the applicable CERT-In period, synchronized clocks, 24×7 escalation contacts, regulator/user decision trees, evidence preservation, vendor escalation and pre-beta tabletop drills.
 9. **Prove it:** secret/SAST/SCA/IaC scanning, malicious-file and API fuzz tests, cross-tenant matrices, PII canaries, prompt-injection evals, restore/deletion/rotation drills and independent pre-launch review. Zero open critical/high findings at release.
 
-## 8. Analytics — PostHog like a world-class PM
+## 8. Analytics — consented metadata, not taxpayer surveillance
 
-Install `posthog-js` only after region/vendor approval. Session replay is **OFF on authenticated tax-case, upload, review and handoff routes**. It may be enabled on the public landing page or synthetic QA environment only after verifying that no taxpayer data, URLs, DOM text or identifiers can be captured. Product events use a server-side property allowlist.
+PostHog is a future hosted-product destination, not a dependency of the Build
+Week local plugin. Capture is opt-in and disabled by default. Tax surfaces never
+use autocapture, pageviews, session replay, heatmaps, surveys, device
+fingerprinting, or prompt tracing. Events carry no PII, IP/GeoIP, identifiers
+linked to a case, filenames/paths, document content, evidence IDs, tax heads,
+deductions, amounts, outcomes, regime winner, prompts, model responses, or free
+text. PostHog person profiles are disabled.
 
-**Event taxonomy (snake_case, `lz_` prefix):**
-`lz_landing_viewed`, `lz_chat_started`, `lz_consent_given`, `lz_doc_upload_started {doc_type}`, `lz_doc_parsed {doc_type, confidence, duration_ms}`, `lz_doc_parse_failed {doc_type, reason}`, `lz_reconciliation_shown {diff_count}`, `lz_reconciliation_resolved {resolution}`, `lz_dashboard_first_paint`, `lz_regime_compared {winner, delta_paise}`, `lz_review_screen_viewed`, `lz_line_item_explained {head}`, `lz_review_confirmed`, `lz_json_generated {itr_type, duration_total_ms}`, `lz_json_downloaded`, `lz_handoff_started`, `lz_handoff_step_completed {step}`, `lz_handoff_completed`, `lz_everify_confirmed`, `lz_share_card_created`, `lz_share_card_shared {channel}`, `lz_referral_landed {ref}`, `lz_drop_off_heartbeat`.
-
-**Funnels:** Landing → chat → first doc parsed → dashboard → review → JSON → handoff complete → e-verified. **North-star:** weekly verified Tax Proof Pack or validated JSON completion. **Guardrails:** mismatch-resolution accuracy, confirmation errors, privacy/security events, parse-fail rate and support interventions. Add pseudonymous `{client: web|mcp|codex|claude_code, client_version}` only after analytics consent; never record tax amounts or case content. Pre-register the channel decision rule before beta.
+The nine-event allowlist, forbidden properties, funnels, consent behavior,
+deletion path, and implementation order are defined in
+`.telemetry/tracking-plan.yaml` and `docs/ANALYTICS_AND_PRIVACY.md`. The
+north-star is the rate of opted-in verification starts that produce a
+user-approved Tax Proof Pack. Channel choice uses completion and safe failure
+rates by client/ruleset, plus separately consented qualitative research.
 
 ## 9. Design language (LOCKED direction)
 
@@ -353,7 +385,7 @@ Every ticket in [TICKETS.md](TICKETS.md) carries acceptance criteria + a verific
 | D10 | Single orchestrator + typed tools (not 5 chat personas) | ✅ |
 | D11 | Extraction model tiering (Opus→Haiku) | ⏳ decide after evals |
 | D12 | Domain purchase + TM search | ⏳ Sharat, Day 1 |
-| D13 | PostHog Cloud region + replay masking config | ⏳ LZ-19 |
+| D13 | PostHog vendor/region gated; replay/autocapture prohibited on tax surfaces; metadata-only opt-in contract locked | ⏳ vendor decision in LZ-60 |
 | D14 | Security posture: DPDP-ready until counsel approval; canonical data map/consent/audit/deletion/incident protocol | ✅ |
 | D15 | No MVP MCP/plugin filing tool; current review hash + explicit web-controlled confirmation required for JSON | ✅ |
 | D16 | Interface winner chosen by verified completion, trust and guardrail metrics, not installs | ✅ |

@@ -1,0 +1,14 @@
+# Current State: greenfield (no tracking detected)
+# Scanned: 2026-07-19
+# SDK: none
+
+events: []
+identity:
+  identify_calls: []
+  group_calls: []
+patterns:
+  naming_style: n/a
+  naming_format: n/a
+  centralized: n/a
+  error_handling: n/a
+

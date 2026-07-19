@@ -170,6 +170,14 @@ Income Tax Department material linked from the engine output. It is not a
 complete implementation of Indian tax law. Its guardrails are part of the
 product, not a promise of production readiness.
 
+## Production planning
+
+- [Robustness audit](docs/ROBUSTNESS_AUDIT.md)
+- [Analytics and privacy](docs/ANALYTICS_AND_PRIVACY.md)
+- [OpenAI Plugins Directory release](docs/PLUGIN_DIRECTORY_RELEASE.md)
+- [Tax coverage and competitive strategy](docs/TAX_COVERAGE_STRATEGY.md)
+- [Telemetry product model and target contract](.telemetry/README.md)
+
 ## Repository map
 
 ```text
@@ -181,6 +189,8 @@ scripts/              plugin bundler and real stdio smoke test
 fixtures/             three fictional source documents
 evals/                stable read-only evaluation questions
 viewer/               static evidence/proof viewer
+docs/                 production analytics, distribution and coverage plans
+.telemetry/            product model, current-state audit and target event contract
 PLAN.md               Build Week scope lock plus archived standalone roadmap
 TICKETS.md            BW-P0 execution backlog plus post-hackathon backlog
 ```

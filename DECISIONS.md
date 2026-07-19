@@ -26,3 +26,9 @@
 - Plugin and skill validators pass; real stdio handshake through the plugin launcher exposes exactly the four documented tools. Root `npm run check` passes.
 - Remaining human-owned release items: record/upload the public video, capture the `/feedback` session ID, choose public/private repository submission path, and complete the Devpost form.
 - Installation testing found and fixed a cache-boundary issue: Codex copies plugins into its cache, so the bundle can no longer depend on repository-relative packages. `npm run build` now embeds the MCP server and three fixtures inside the plugin; a real stdio smoke test passes from the installed cache path.
+
+## 2026-07-19 · Codex · Production analytics, publication and coverage strategy
+- The Build Week local plugin remains zero-telemetry and local-first. PostHog is approved only as a future opt-in hosted-product destination through a first-party allowlisting gateway; no autocapture, session replay, person profiles, PII, IP/GeoIP, case/evidence identifiers, tax categories, amounts, outcomes, prompts or free text.
+- Public distribution is sequenced as skills-only submission first, then an app-plus-skills submission after a production HTTPS MCP endpoint, verified publisher/domain, public legal/support pages, authentication, CSP, reviewer access and security gates exist.
+- LazyTax will not claim “all Indian tax laws.” The near-term right to win is more proof per supported personal-income-tax filing: source-linked claims, conflict-first reconciliation, deterministic rupee calculations, portable proof packs, user-chosen agent interfaces and privacy-minimized processing.
+- ClearTax breadth is treated as a benchmark, not immediate scope. Coverage expands through a versioned official-source rule registry, government-utility cross-checks, golden/property tests and named CA/legal approval before each capability is declared supported.

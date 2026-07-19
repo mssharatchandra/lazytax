@@ -219,9 +219,15 @@ Fail-fast env validation (Zod). Sentry (server+client, PII scrubbing beforeSend)
 
 ### LZ-19 · PostHog instrumentation
 `pkg:web`+`pkg:config` · deps: LZ-12 · 4h
-posthog-js + server capture; full `lz_*` taxonomy per skill `lazytax-analytics`; funnels + dashboards (activation, parse health, handoff) + 2 alerts (parse-fail spike, handoff drop). Session replay is disabled on every authenticated tax-case/upload/review/handoff route and permitted only on public or synthetic surfaces after a capture audit. No PII in properties (server-side allowlist + CI lint on event payload types).
-**AC:** every Wave-1 surface emits its events (checklist in skill); dashboards live; no-PII property tests pass; route test proves replay is disabled inside the product.
-**V:** PostHog dashboard screenshots + event debugger capture.
+Implement the contract in `.telemetry/tracking-plan.yaml` only after LZ-60's
+vendor/region and consent gates. Use a typed registry, no-op default sink and
+first-party server gateway; no direct client delivery from tax surfaces. No
+autocapture, pageviews, replay, heatmaps, surveys, person profiles, IP/GeoIP,
+PII, case/evidence IDs, tax categories, amounts, outcomes, prompts or free text.
+**AC:** consent absent/withdrawn produces zero SDK initialization and requests;
+unknown/forbidden properties fail tests; all nine target events are canonical,
+non-blocking and production/synthetic separated; dashboards exclude internal traffic.
+**V:** privacy payload suite + synthetic PostHog debugger capture + withdrawal/deletion test.
 
 ---
 
@@ -492,3 +498,106 @@ Severity/command roles, containment, evidence, key rotation, restoration, vendor
 CI secret/SBOM/SCA/SAST/IaC/container scans, malicious-file corpus, authz matrix, API fuzz/abuse/CSRF/XSS/SSRF/polyglot tests, prompt-injection evals and PII canaries; independent penetration test or qualified review; signed go/no-go memo.
 **AC:** zero open critical/high findings; 100% authz/agent guardrails; medium risks owned; residual risks/rollback/approvers recorded; gates rerun on sensitive changes.
 **V:** CI artifacts + remediation evidence + signed security release record.
+
+---
+
+## Production moat, analytics and public distribution addendum
+
+### LZ-60 · Privacy-safe telemetry foundation and vendor gate
+`pkg:analytics`+`type:security`+`type:legal` · deps: LZ-47, LZ-50, LZ-52 · P0/blocking
+Approve PostHog region/DPA/subprocessors/retention/deletion/cross-border treatment;
+implement separate analytics consent, typed event registry generated from
+`.telemetry/tracking-plan.yaml`, no-op default sink, first-party allowlisting
+gateway and processor deletion. Keep the local plugin zero-telemetry by default.
+**AC:** zero network/identifier before opt-in; replay/autocapture/person profiles
+and IP/GeoIP are disabled; forbidden and unknown properties are rejected; tax
+workflow succeeds during telemetry outage; withdrawal stops capture and deletes.
+**V:** packet-level consent test + DLP/property suite + vendor approval record + deletion receipt.
+
+### LZ-61 · OpenAI Plugins Directory skills-only submission
+`pkg:plugin`+`type:growth` · deps: BW-9, BW-10, BW-12 · P0
+Prepare production listing copy/logo/site/support/privacy/terms, verified
+publisher identity, final skill ZIP, starter prompts, release notes, country
+availability and exactly five positive/three negative reviewer cases. Submit
+the narrow synthetic verification skill without live-filing claims.
+**AC:** Apps Management write access and identity verified; all public URLs
+match publisher; final skill tree passes validation/security scan; eight tests
+are reproducible without private context; submission status is in review.
+**V:** portal draft export/screenshots + validator output + reviewer-case transcript.
+
+### LZ-62 · Public production MCP and app-plus-skills submission
+`pkg:mcp`+`pkg:platform`+`pkg:plugin` · deps: LZ-48..55, LZ-59, LZ-60 · P1/blocking
+Deploy the capability-scoped MCP over HTTPS with OAuth/reviewer account, domain
+verification challenge, exact CSP, rate/abuse limits and truthful tool schemas/
+annotations. Submit the MCP from scratch as an app-plus-skills plugin after all
+production security gates pass.
+**AC:** public MCP/domain scan green; reviewer credentials need no MFA/SMS/email;
+all tool annotations match side effects; responses contain no undisclosed user
+data; kill switch/revocation/load/security drills pass; submission is in review.
+**V:** portal tool scan + domain verification + MCP/security/load transcripts.
+
+### LZ-63 · Versioned official-source tax rule registry
+`pkg:rules`+`type:legal` · deps: LZ-2 · P0/blocking for breadth
+Create a signed registry for Act/Finance Act/Rules/notifications/circulars/ITR
+schemas and validation utilities with authority, URL/hash, effective dates,
+assessment/tax year, supersession, implementation mapping and reviewer state.
+Generate a machine-readable coverage matrix and release manifest from it.
+**AC:** no engine constant lacks an authoritative source/version/effective date;
+stale/superseded sources fail CI; ruleset hash appears in every calculation and
+proof pack; named CA/legal approval is required before `supported=true`.
+**V:** registry schema tests + source integrity job + signed release manifest.
+
+### LZ-64 · Deterministic engine production hardening
+`pkg:core`+`pkg:engine` · deps: LZ-63 · P0
+Replace floating-point rupees with integer paise/decimal arithmetic; inject time
+for byte-stable proof artifacts; retain all tax-credit and excluded-source
+evidence; add official rounding, calculation DAG, invariant/property/metamorphic
+tests, fuzzing, boundary tables and differential checks against government
+utilities/independent calculators.
+**AC:** zero float currency paths; identical inputs/ruleset produce identical
+canonical bytes; every output number maps to inputs and rule nodes; ≥95% branch
+coverage; boundary/fuzz corpus green; unexplained differential is release-blocking.
+**V:** golden/property/fuzz/differential reports + reproducibility hash check.
+
+### LZ-65 · Personal-income-tax coverage matrix: ITR-1 and ITR-2
+`pkg:engine`+`pkg:ingest`+`pkg:itr-json` · deps: LZ-41..46, LZ-63, LZ-64 · P1
+Complete salary/multiple employers, house property, other sources, Chapter VI-A,
+capital assets, losses, tax credits, interest/fees, surcharge/marginal relief,
+advance/self-assessment tax, AIS/TIS/26AS/bank/broker reconciliation and official
+ITR-1/2 JSON schedules. Route valuation/treaty/judgment cases to human review.
+**AC:** every matrix row has sources, supported inputs, eligibility boundary,
+engine rule, JSON schedule, golden fixtures, official-utility cross-check, safe
+failure behavior and named reviewer; no partial row is marketed as supported.
+**V:** generated coverage report + ITR utility round-trip corpus + CA sign-off.
+
+### LZ-66 · Complex individual/professional coverage: ITR-3 and ITR-4
+`pkg:engine`+`pkg:ingest`+`pkg:itr-json` · deps: LZ-35..38, LZ-63..65 · P2
+Add F&O/intraday, presumptive income, books boundaries, ESOP/RSU, VDA/crypto,
+gaming, NRI/RNOR, foreign income/assets/FTC/DTAA, clubbing, relief, brought-
+forward losses and revised/belated/updated-return flows with professional review
+for audit, valuation, treaty and ambiguity.
+**AC:** same capability-matrix gate as LZ-65; ITR-3/4 official utility validation;
+100% safe escalation on audit/treaty/unsupported cases; no silent defaulting.
+**V:** full ITR-3/4 corpus + government-utility report + reviewer approvals.
+
+### LZ-67 · Filing, verification and post-filing evidence lifecycle
+`pkg:filing`+`pkg:platform`+`pkg:web` · deps: LZ-40, LZ-53, LZ-59, LZ-65 · P2
+Qualify an ERI/approved filing provider; require immutable review hash and fresh
+purpose-specific consent; implement retry-safe submit/payment/e-verify/status,
+acknowledgement, revision/rectification, 143(1) reconciliation and notice-proof
+workflows with maker-checker review and kill switches.
+**AC:** duplicate/timeout/rejection/revision scenarios are idempotent; submission
+is impossible without current review/consent; acknowledgement and post-filing
+events extend the proof ledger; production enablement requires named approval.
+**V:** sandbox/provider certification + failure drills + signed filing go/no-go.
+
+### LZ-68 · Separate adjacent-tax product discovery
+`type:product`+`type:legal` · deps: LZ-63 · P3
+Treat GST, TDS/TCS, corporate income tax, transfer pricing and litigation as
+separate products. For each, produce persona/JTBD, statutory/source inventory,
+data/permission model, filing schemas, reconciliation moat, professional-review
+requirements, market proof and independent security/legal launch gate.
+**AC:** no adjacent vertical reuses personal-tax claims or permissions by default;
+each receives a separate scope lock and ruleset; build starts only after the
+personal-tax proof kernel meets its reliability and retention targets.
+**V:** approved discovery briefs and explicit go/no-go per vertical.

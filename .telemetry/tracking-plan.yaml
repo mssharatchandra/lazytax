@@ -1,0 +1,186 @@
+meta:
+  product: "LazyTax"
+  version: 1
+  created: 2026-07-19
+  updated: 2026-07-19
+  owner: "founder"
+  implementation: posthog
+  destinations: [posthog]
+  pii_policy: none
+  internal_user_policy: by_flag
+  consent_mode: opt_in
+  session_replay: prohibited_on_tax_surfaces
+  autocapture: disabled
+
+entities:
+  user:
+    id_property: installation_id
+    id_format: "ins_*"
+    description: "Random analytics-only installation ID created after opt-in; never derived from PAN, email, device fingerprint, case, or document."
+    traits: []
+
+groups: []
+
+common_properties:
+  - name: telemetry_schema_version
+    type: integer
+    required: true
+  - name: client_type
+    type: string
+    enum: [web, mcp, codex, claude_code]
+    required: true
+  - name: client_version
+    type: string
+    required: true
+  - name: ruleset_version
+    type: string
+    required: true
+  - name: is_synthetic
+    type: boolean
+    required: true
+
+events:
+  - name: lz_session_started
+    category: lifecycle
+    description: An opted-in production client begins a LazyTax session.
+    properties:
+      - name: entry_source
+        type: string
+        enum: [direct, plugin_directory, referral, returning]
+        required: true
+    expected_frequency: medium
+
+  - name: lz_verification_started
+    category: core_value
+    description: A user begins the evidence-verification workflow.
+    properties:
+      - name: input_mode
+        type: string
+        enum: [bundled_synthetic, supplied_synthetic, authorized_case]
+        required: true
+    expected_frequency: medium
+
+  - name: lz_normalization_completed
+    category: core_value
+    description: Supported inputs were normalized successfully.
+    properties:
+      - name: source_count_bucket
+        type: string
+        enum: [one, two_to_three, four_plus]
+        required: true
+      - name: duration_bucket
+        type: string
+        enum: [under_1s, one_to_five_s, over_5s]
+        required: true
+    expected_frequency: medium
+
+  - name: lz_reconciliation_completed
+    category: core_value
+    description: Source reconciliation completed without exposing categories or amounts.
+    properties:
+      - name: outcome
+        type: string
+        enum: [ready, user_action_required, unsupported]
+        required: true
+      - name: conflict_count_bucket
+        type: string
+        enum: [zero, one, two_plus]
+        required: true
+    expected_frequency: medium
+
+  - name: lz_calculation_completed
+    category: core_value
+    description: The deterministic engine completed a supported calculation.
+    properties:
+      - name: comparison_included
+        type: boolean
+        required: true
+    expected_frequency: medium
+
+  - name: lz_proof_pack_generated
+    category: core_value
+    description: A user-approved, evidence-linked Tax Proof Pack was generated.
+    properties:
+      - name: integrity_hash_included
+        type: boolean
+        required: true
+    expected_frequency: medium
+
+  - name: lz_workflow_completed
+    category: core_value
+    description: The end-to-end supported verification workflow completed.
+    properties:
+      - name: completion_surface
+        type: string
+        enum: [web, mcp, codex, claude_code]
+        required: true
+      - name: duration_bucket
+        type: string
+        enum: [under_2m, two_to_five_m, over_5m]
+        required: true
+    expected_frequency: medium
+
+  - name: lz_workflow_failed
+    category: reliability
+    description: A workflow stage failed with a safe, allowlisted error code.
+    properties:
+      - name: stage
+        type: string
+        enum: [normalization, reconciliation, calculation, proof_pack, authentication, authorization]
+        required: true
+      - name: error_code
+        type: string
+        enum: [validation_failed, unsupported_case, authorization_failed, timeout, dependency_unavailable, internal_error]
+        required: true
+    expected_frequency: low
+
+  - name: lz_surface_switched
+    category: lifecycle
+    description: An opted-in user continues the workflow on another LazyTax surface.
+    properties:
+      - name: from_surface
+        type: string
+        enum: [web, mcp, codex, claude_code]
+        required: true
+      - name: to_surface
+        type: string
+        enum: [web, mcp, codex, claude_code]
+        required: true
+    expected_frequency: low
+
+snapshot_sync: []
+
+forbidden_properties:
+  - pan
+  - aadhaar
+  - name
+  - email
+  - phone
+  - address
+  - ip_address
+  - geo_location
+  - document_name
+  - document_path
+  - document_content
+  - evidence_id
+  - case_id
+  - prompt
+  - model_response
+  - income_amount
+  - tax_amount
+  - refund_amount
+  - regime_winner
+  - deduction
+  - income_category
+  - free_text
+
+implementation_notes:
+  - "Capture is disabled by default and begins only after separate versioned analytics consent."
+  - "Do not initialize PostHog at all when consent is absent or withdrawn."
+  - "Set $process_person_profile=false and disable GeoIP/IP capture."
+  - "No autocapture, pageview capture, session replay, surveys, heatmaps, or LLM prompt tracing on tax surfaces."
+  - "All events pass through a first-party server-side allowlist and redaction gateway before PostHog."
+  - "Analytics failures are non-blocking; tax workflows never depend on analytics availability."
+  - "Synthetic, internal, CI, reviewer, and developer traffic is excluded by an explicit is_internal guard."
+  - "Consent withdrawal rotates/deletes the analytics identifier and propagates deletion to the processor."
+
