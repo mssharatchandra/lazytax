@@ -21125,6 +21125,7 @@ var IncomeCategorySchema = external_exports.enum([
   "listed_equity_ltcg"
 ]);
 var DocumentKindSchema = external_exports.enum(["form16", "ais", "broker_report", "other"]);
+var SyntheticTaxpayerReferenceSchema = external_exports.string().regex(/^(?:SYNTH|DEID|DEMO)[A-Za-z0-9_-]{0,100}$/i, "Synthetic taxpayer references must start with SYNTH, DEID, or DEMO and contain no real identifier.");
 var FixtureEntrySchema = external_exports.object({
   id: external_exports.string().min(1).max(120).describe("Stable row or field identifier within the synthetic document."),
   label: external_exports.string().min(1).max(200).describe("Human-readable source label."),
@@ -21138,6 +21139,10 @@ var FixtureDocumentSchema = external_exports.object({
   kind: DocumentKindSchema,
   display_name: external_exports.string().min(1).max(160),
   synthetic: external_exports.literal(true).describe("Must be true; the MVP accepts synthetic demo data only."),
+  tax_year: external_exports.literal("FY2025-26"),
+  assessment_year: external_exports.literal("AY2026-27"),
+  taxpayer_ref: SyntheticTaxpayerReferenceSchema,
+  currency: external_exports.literal("INR"),
   entries: external_exports.array(FixtureEntrySchema).min(1).max(200)
 }).strict();
 var SyntheticFixtureRecordSchema = external_exports.object({
@@ -21158,7 +21163,7 @@ var SyntheticFixtureDocumentSchema = external_exports.object({
   document_type: external_exports.enum(["form16_like", "ais_like", "broker_pnl_like"]),
   tax_year: external_exports.literal("FY2025-26"),
   assessment_year: external_exports.literal("AY2026-27"),
-  taxpayer_ref: external_exports.string().min(1).max(120),
+  taxpayer_ref: SyntheticTaxpayerReferenceSchema,
   taxpayer_display_name: external_exports.string().min(1).max(160),
   issuer: external_exports.string().min(1).max(200),
   currency: external_exports.literal("INR"),
@@ -21179,6 +21184,8 @@ var EvidenceItemSchema = external_exports.object({
 }).strict();
 var NormalizedDatasetSchema = external_exports.object({
   assessment_year: external_exports.literal(ASSESSMENT_YEAR),
+  tax_year: external_exports.literal("FY2025-26"),
+  taxpayer_ref: SyntheticTaxpayerReferenceSchema,
   synthetic: external_exports.literal(true),
   evidence: external_exports.array(EvidenceItemSchema),
   warnings: external_exports.array(external_exports.string()),
@@ -21203,6 +21210,7 @@ var ReconciliationItemSchema = external_exports.object({
 }).strict();
 var ReconciliationResultSchema = external_exports.object({
   assessment_year: external_exports.literal(ASSESSMENT_YEAR),
+  tolerance_inr: external_exports.number().int().min(0).max(1e4),
   ready_for_calculation: external_exports.boolean(),
   items: external_exports.array(ReconciliationItemSchema),
   unresolved_categories: external_exports.array(IncomeCategorySchema),
@@ -21267,6 +21275,9 @@ var TaxProofPackSchema = external_exports.object({
   unresolved_actions: external_exports.array(external_exports.string()),
   integrity: external_exports.object({
     algorithm: external_exports.literal("SHA-256"),
+    dataset_hash: external_exports.string().regex(/^[a-f0-9]{64}$/),
+    reconciliation_hash: external_exports.string().regex(/^[a-f0-9]{64}$/),
+    calculation_hash: external_exports.string().regex(/^[a-f0-9]{64}$/),
     canonical_payload_hash: external_exports.string().regex(/^[a-f0-9]{64}$/)
   }),
   disclaimer: external_exports.string()
@@ -21285,6 +21296,56 @@ var UnsupportedTaxProfileError = class extends Error {
     this.name = "UnsupportedTaxProfileError";
   }
 };
+var SYNTHETIC_PII_PATTERNS = [
+  { name: "PAN", pattern: /\b[A-Z]{5}[0-9]{4}[A-Z]\b/i },
+  { name: "Aadhaar", pattern: /\b[0-9]{4}[ -]?[0-9]{4}[ -]?[0-9]{4}\b/ },
+  { name: "email address", pattern: /\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/i },
+  { name: "Indian mobile number", pattern: /\b(?:\+?91[ -]?)?[6-9][0-9]{9}\b/ },
+  { name: "IFSC code", pattern: /\b[A-Z]{4}0[A-Z0-9]{6}\b/i },
+  {
+    name: "bank account number",
+    pattern: /\b(?:account|a\/c|bank)[\s:#-]*(?:[0-9][ -]?){9,18}\b/i
+  }
+];
+function assertNoSyntheticPii(value) {
+  const visit = (candidate) => {
+    if (typeof candidate === "string") {
+      const detected = SYNTHETIC_PII_PATTERNS.find(({ pattern }) => pattern.test(candidate));
+      if (detected) {
+        throw new Error(`Synthetic-mode input contains a possible ${detected.name}. Remove or replace all real identifiers with clearly synthetic values before continuing.`);
+      }
+      return;
+    }
+    if (Array.isArray(candidate)) {
+      for (const item of candidate)
+        visit(item);
+      return;
+    }
+    if (candidate !== null && typeof candidate === "object") {
+      for (const nested of Object.values(candidate))
+        visit(nested);
+    }
+  };
+  visit(value);
+}
+function assertNormalizedDatasetIntegrity(dataset) {
+  const evidenceIds = /* @__PURE__ */ new Set();
+  const documentMetadata = /* @__PURE__ */ new Map();
+  for (const item of dataset.evidence) {
+    if (evidenceIds.has(item.evidence_id)) {
+      throw new Error(`Normalized dataset contains duplicate evidence ID ${item.evidence_id}. Re-run normalization from the original synthetic documents.`);
+    }
+    evidenceIds.add(item.evidence_id);
+    const prior = documentMetadata.get(item.document_id);
+    if (prior !== void 0 && (prior.kind !== item.document_kind || prior.name !== item.document_name)) {
+      throw new Error(`Normalized dataset contains inconsistent metadata for document ${item.document_id}. Re-run normalization from the original synthetic documents.`);
+    }
+    documentMetadata.set(item.document_id, {
+      kind: item.document_kind,
+      name: item.document_name
+    });
+  }
+}
 function isSyntheticFixture(document) {
   return "schema_version" in document;
 }
@@ -21317,13 +21378,57 @@ function normalizeFixtureData(documentsInput) {
   if (documentsInput.length === 0) {
     throw new Error("At least one synthetic fixture document is required.");
   }
-  const documents = documentsInput.map((document) => FixtureDocumentInputSchema.parse(document));
-  const evidence = [];
+  const parsedDocuments = documentsInput.map((document) => FixtureDocumentInputSchema.parse(document));
+  assertNoSyntheticPii(parsedDocuments);
+  const taxpayerRefs = new Set(parsedDocuments.map((document) => document.taxpayer_ref));
+  const taxYears = new Set(parsedDocuments.map((document) => document.tax_year));
+  const assessmentYears = new Set(parsedDocuments.map((document) => document.assessment_year));
+  if (taxpayerRefs.size !== 1) {
+    throw new Error("All documents in one normalization request must use the same synthetic taxpayer_ref.");
+  }
+  if (taxYears.size !== 1 || assessmentYears.size !== 1) {
+    throw new Error("All documents in one normalization request must use the same FY2025-26 / AY2026-27 period.");
+  }
+  const documents = [];
+  const documentFingerprints = /* @__PURE__ */ new Map();
   const warnings = [];
+  for (const document of parsedDocuments) {
+    const documentId = isSyntheticFixture(document) ? document.document_id : document.id;
+    const fingerprint = canonicalize(document);
+    const priorFingerprint = documentFingerprints.get(documentId);
+    if (priorFingerprint !== void 0) {
+      if (priorFingerprint !== fingerprint) {
+        throw new Error(`Document ID collision for ${documentId}. Two different documents cannot share an identifier.`);
+      }
+      warnings.push(`Deduplicated repeated document ${documentId}; its evidence was processed once.`);
+      continue;
+    }
+    documentFingerprints.set(documentId, fingerprint);
+    documents.push(document);
+  }
+  const evidence = [];
+  const evidenceIds = /* @__PURE__ */ new Set();
+  const fixtureSourceIds = /* @__PURE__ */ new Set();
+  const appendEvidence = (item) => {
+    if (evidenceIds.has(item.evidence_id)) {
+      throw new Error(`Duplicate evidence ID ${item.evidence_id}. Source and line identifiers must be unique within a fixture set.`);
+    }
+    evidenceIds.add(item.evidence_id);
+    evidence.push(item);
+  };
   for (const document of documents) {
     if (isSyntheticFixture(document)) {
       const kind = fixtureKind(document.document_type);
+      const lineIds = /* @__PURE__ */ new Set();
       for (const record2 of document.records) {
+        if (fixtureSourceIds.has(record2.source_id)) {
+          throw new Error(`Duplicate source ID ${record2.source_id}. Source identifiers must be unique across the fixture set.`);
+        }
+        fixtureSourceIds.add(record2.source_id);
+        if (lineIds.has(record2.line_id)) {
+          throw new Error(`Duplicate line ID ${record2.line_id} in document ${document.document_id}. Each source row must be unique.`);
+        }
+        lineIds.add(record2.line_id);
         const category = supportedRecordCategory(record2);
         if (!category) {
           if (record2.category === "tax_credit") {
@@ -21333,7 +21438,7 @@ function normalizeFixtureData(documentsInput) {
           warnings.push(`Ignored unsupported or derived record ${record2.source_id} (${record2.category}/${record2.subtype}); it was not used as taxable income.`);
           continue;
         }
-        evidence.push({
+        appendEvidence({
           evidence_id: record2.source_id,
           document_id: document.document_id,
           document_kind: kind,
@@ -21349,7 +21454,7 @@ function normalizeFixtureData(documentsInput) {
       continue;
     }
     for (const entry of document.entries) {
-      evidence.push({
+      appendEvidence({
         evidence_id: `${document.id}:${entry.id}`,
         document_id: document.id,
         document_kind: document.kind,
@@ -21368,6 +21473,8 @@ function normalizeFixtureData(documentsInput) {
   }
   return NormalizedDatasetSchema.parse({
     assessment_year: ASSESSMENT_YEAR,
+    tax_year: "FY2025-26",
+    taxpayer_ref: [...taxpayerRefs][0],
     synthetic: true,
     evidence,
     warnings,
@@ -21402,6 +21509,8 @@ function aggregateSources(items) {
 }
 function reconcileEvidence(datasetInput, confirmations = {}, toleranceInr = 1) {
   const dataset = NormalizedDatasetSchema.parse(datasetInput);
+  assertNoSyntheticPii(dataset);
+  assertNormalizedDatasetIntegrity(dataset);
   if (!Number.isInteger(toleranceInr) || toleranceInr < 0 || toleranceInr > 1e4) {
     throw new Error("tolerance_inr must be a whole number from 0 to 10,000.");
   }
@@ -21473,6 +21582,7 @@ function reconcileEvidence(datasetInput, confirmations = {}, toleranceInr = 1) {
   const unresolvedCategories = items.filter((item) => item.status === "conflict").map((item) => item.category);
   return ReconciliationResultSchema.parse({
     assessment_year: ASSESSMENT_YEAR,
+    tolerance_inr: toleranceInr,
     ready_for_calculation: unresolvedCategories.length === 0,
     items,
     unresolved_categories: unresolvedCategories,
@@ -21605,8 +21715,26 @@ function generateTaxProofPack(args) {
   const dataset = NormalizedDatasetSchema.parse(args.dataset);
   const reconciliation = ReconciliationResultSchema.parse(args.reconciliation);
   const calculation = RegimeComparisonSchema.parse(args.calculation);
+  assertNoSyntheticPii(dataset);
   if (!reconciliation.ready_for_calculation) {
     throw new Error("Cannot generate a final Tax Proof Pack while reconciliation conflicts remain unresolved.");
+  }
+  const confirmations = {};
+  for (const item of reconciliation.items) {
+    if (item.status === "confirmed") {
+      if (item.selected_amount_inr === null) {
+        throw new Error(`Confirmed reconciliation item ${item.category} is missing its selected amount.`);
+      }
+      confirmations[item.category] = item.selected_amount_inr;
+    }
+  }
+  const recomputedReconciliation = reconcileEvidence(dataset, confirmations, reconciliation.tolerance_inr);
+  if (canonicalize(recomputedReconciliation) !== canonicalize(reconciliation)) {
+    throw new Error("Reconciliation integrity check failed. The supplied reconciliation is not reproducible from the source evidence and recorded confirmations.");
+  }
+  const recomputedCalculation = compareTaxRegimes(profile, taxInputsFromReconciliation(recomputedReconciliation));
+  if (canonicalize(recomputedCalculation) !== canonicalize(calculation)) {
+    throw new Error("Calculation integrity check failed. The supplied calculation is not reproducible from the bound reconciliation and taxpayer profile.");
   }
   const generatedAt = args.generatedAt ?? (/* @__PURE__ */ new Date()).toISOString();
   const payload = {
@@ -21615,17 +21743,23 @@ function generateTaxProofPack(args) {
     assessment_year: ASSESSMENT_YEAR,
     synthetic: true,
     supported_profile: profile,
-    reconciliation,
-    calculation,
+    reconciliation: recomputedReconciliation,
+    calculation: recomputedCalculation,
     evidence_index: dataset.evidence,
     unresolved_actions: reconciliation.items.flatMap((item) => item.action_required ? [item.action_required] : []),
     disclaimer: DISCLAIMER
   };
+  const datasetHash = createHash("sha256").update(canonicalize(dataset)).digest("hex");
+  const reconciliationHash = createHash("sha256").update(canonicalize(recomputedReconciliation)).digest("hex");
+  const calculationHash = createHash("sha256").update(canonicalize(recomputedCalculation)).digest("hex");
   const canonicalPayloadHash = createHash("sha256").update(canonicalize(payload)).digest("hex");
   return TaxProofPackSchema.parse({
     ...payload,
     integrity: {
       algorithm: "SHA-256",
+      dataset_hash: datasetHash,
+      reconciliation_hash: reconciliationHash,
+      calculation_hash: calculationHash,
       canonical_payload_hash: canonicalPayloadHash
     }
   });

@@ -1,6 +1,6 @@
 {
   "name": "lazytax",
-  "version": "0.1.0+codex.20260719123917",
+  "version": "0.1.0+codex.20260719134822",
   "description": "Evidence-first verification for synthetic Indian tax returns, powered by deterministic local tools.",
   "author": {
     "name": "Sharat Chandra MS",

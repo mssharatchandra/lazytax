@@ -31,21 +31,27 @@ explicit development override.
 
 From the repository root:
 
-1. Install dependencies and build the MCP package using the repository's documented build command.
-2. Register the repository marketplace if it is not already registered:
+1. Install dependencies, run the full repository check, and use the safe local installer:
+
+   ```sh
+   npm install
+   npm run check
+   npm run install:plugin
+   ```
+
+   The check runs the complete synthetic MCP workflow from an isolated plugin
+   copy before installation. The installer registers this repository's
+   marketplace only when necessary and refreshes the plugin.
+
+2. Alternatively, register and install manually:
 
    ```sh
    codex plugin marketplace add .
-   ```
-
-3. Install the plugin:
-
-   ```sh
    codex plugin add lazytax@personal
    ```
 
-4. Start a new Codex task so the skill and MCP tools are loaded.
-5. Invoke `$verify-tax-return` with the included synthetic fixtures.
+3. Start a new Codex task so the skill and MCP tools are loaded.
+4. Invoke `$verify-tax-return` with the included synthetic fixtures.
 
 Do not use real taxpayer records, credentials, OTPs, or identifying information in this MVP.
 

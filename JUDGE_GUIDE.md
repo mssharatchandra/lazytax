@@ -19,11 +19,25 @@ From the repository root:
 ```sh
 npm install
 npm run check
+npm run install:plugin
+```
+
+`npm run check` includes an isolated-copy smoke test of the complete four-tool
+workflow, so it verifies the same self-contained package shape Codex places in
+its install cache. `npm run install:plugin` registers this repository as the
+`personal` marketplace when needed and installs or refreshes
+`lazytax@personal`.
+
+Start a new Codex task after installation so the skill and MCP server are
+loaded. No API key, tax-portal account, network integration, or test login is
+required for the deterministic demo.
+
+If you prefer to run the two Codex commands manually from the repository root:
+
+```sh
 codex plugin marketplace add .
 codex plugin add lazytax@personal
 ```
-
-Start a new Codex task after installation so the skill and MCP server are loaded. No API key, tax-portal account, network integration, or test login is required for the deterministic demo.
 
 ### Canonical judge prompt
 
@@ -61,13 +75,17 @@ Expected checkpoints:
 
 ## Evidence viewer
 
-The viewer is a zero-build, read-only projection of the expected demo result:
+The viewer is a local, read-only rendering of the actual structured MCP output:
 
 ```sh
-python3 -m http.server 4173 --directory viewer
+npm run viewer
 ```
 
-Open `http://localhost:4173`. The page embeds only fictional data and can export its synthetic projection as JSON. It makes no network calls and uses no external fonts, scripts, images, brands, or analytics.
+Open `http://127.0.0.1:4173` and click **Run synthetic MCP workflow**. The
+loopback-only server executes the canonical fixture workflow through the real
+MCP tools, including the documented synthetic salary confirmation, and the page
+renders and exports the generated Tax Proof Pack. It accepts no uploads, rejects
+cross-origin generation, and makes no external network calls.
 
 ## MCP tool contract
 
@@ -194,10 +212,11 @@ If using an MCP evaluation harness, launch the compiled stdio server with the re
 
 ## Troubleshooting
 
-- **Plugin tools are missing:** confirm `npm run build` succeeds, reinstall the local plugin, and start a new Codex task.
+- **Plugin tools are missing:** run `npm run install:plugin`, then start a new Codex task.
+- **Marketplace name conflict:** the safe installer stops if `personal` points at another local marketplace. Remove or rename that marketplace, or install LazyTax manually under a distinct marketplace name.
 - **MCP process exits:** run `npm run mcp` from the repository root to see the actionable stderr message.
 - **Calculation is blocked:** run reconciliation once without confirmations, inspect the salary conflict, then explicitly confirm `salary: 1840000`.
-- **Viewer does not load:** serve the `viewer/` directory or open `viewer/index.html` directly. No build step is required.
+- **Viewer does not load:** run `npm run viewer`, then open `http://127.0.0.1:4173`. A plain static file server cannot execute the live MCP workflow.
 
 ## What not to test
 

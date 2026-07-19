@@ -73,9 +73,15 @@ Requirements: Node.js 20+ and a current Codex CLI/desktop installation.
 ```sh
 npm install
 npm run check
-codex plugin marketplace add .
-codex plugin add lazytax@personal
+npm run install:plugin
 ```
+
+`npm run check` builds the self-contained plugin, validates its marketplace and
+manifest wiring, and runs the complete synthetic workflow from both the source
+tree and an isolated copy that behaves like Codex's install cache. The install
+command safely registers this repository's `personal` marketplace, installs or
+refreshes `lazytax@personal`, and refuses to overwrite a different marketplace
+with the same name.
 
 Start a new Codex task after installation, select GPT-5.6, and ask:
 
@@ -111,17 +117,23 @@ npm install       # install workspace dependencies
 npm run build     # strict TypeScript build: core -> engine -> MCP
 npm test          # schema, golden-engine and MCP smoke tests
 npm run check     # build + all tests
-npm run smoke:plugin # real stdio handshake through the plugin launcher
+npm run preflight:plugin # validate portable bundle and marketplace wiring
+npm run smoke:plugin # full source + isolated-copy MCP workflow
+npm run verify:plugin # rebuild and run both plugin-only checks
+npm run install:plugin # verify, register marketplace and install/refresh
 npm run mcp       # start the stdio server (normally launched by the plugin)
 ```
 
 To inspect the evidence UI without a web framework, serve the repository root:
 
 ```sh
-python3 -m http.server 4173
+npm run viewer
 ```
 
-Then open `http://127.0.0.1:4173/viewer/`.
+Then open `http://127.0.0.1:4173` and click **Run synthetic MCP workflow**.
+The loopback-only viewer runs the canonical fixture set through the real MCP
+tools in memory, renders their structured output, and exports the generated Tax
+Proof Pack. It rejects cross-origin generation and accepts no uploaded data.
 
 ## Codex and GPT-5.6 collaboration
 

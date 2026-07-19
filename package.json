@@ -8,11 +8,17 @@
   ],
   "scripts": {
     "build": "npm run build -w @lazytax/core && npm run build -w @lazytax/engine && npm run build -w @lazytax/mcp && npm run build:plugin",
+    "build:runtime": "npm run build -w @lazytax/core && npm run build -w @lazytax/engine && npm run build -w @lazytax/mcp",
     "build:plugin": "node scripts/build-plugin.mjs",
-    "test": "npm run test -w @lazytax/core && npm run test -w @lazytax/engine && npm run test -w @lazytax/mcp",
-    "check": "npm run build && npm test",
+    "test": "npm run test -w @lazytax/core && npm run test -w @lazytax/engine && npm run test -w @lazytax/mcp && npm run test:viewer",
+    "test:viewer": "npm run build:runtime && node --test viewer/test/*.test.mjs",
+    "check": "npm run build && npm test && npm run preflight:plugin && npm run smoke:plugin",
     "mcp": "npm run start -w @lazytax/mcp",
-    "smoke:plugin": "node scripts/smoke-plugin.mjs"
+    "viewer": "npm run build:runtime && node viewer/server.mjs",
+    "preflight:plugin": "node scripts/preflight-plugin.mjs",
+    "smoke:plugin": "node scripts/smoke-plugin.mjs",
+    "verify:plugin": "npm run build:plugin && npm run preflight:plugin && npm run smoke:plugin",
+    "install:plugin": "npm run verify:plugin && node scripts/install-local-plugin.mjs"
   },
   "engines": {
     "node": ">=20"

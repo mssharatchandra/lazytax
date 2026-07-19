@@ -38,6 +38,66 @@ export class UnsupportedTaxProfileError extends Error {
   }
 }
 
+const SYNTHETIC_PII_PATTERNS: readonly { readonly name: string; readonly pattern: RegExp }[] = [
+  { name: "PAN", pattern: /\b[A-Z]{5}[0-9]{4}[A-Z]\b/i },
+  { name: "Aadhaar", pattern: /\b[0-9]{4}[ -]?[0-9]{4}[ -]?[0-9]{4}\b/ },
+  { name: "email address", pattern: /\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/i },
+  { name: "Indian mobile number", pattern: /\b(?:\+?91[ -]?)?[6-9][0-9]{9}\b/ },
+  { name: "IFSC code", pattern: /\b[A-Z]{4}0[A-Z0-9]{6}\b/i },
+  {
+    name: "bank account number",
+    pattern: /\b(?:account|a\/c|bank)[\s:#-]*(?:[0-9][ -]?){9,18}\b/i
+  }
+];
+
+function assertNoSyntheticPii(value: unknown): void {
+  const visit = (candidate: unknown): void => {
+    if (typeof candidate === "string") {
+      const detected = SYNTHETIC_PII_PATTERNS.find(({ pattern }) => pattern.test(candidate));
+      if (detected) {
+        throw new Error(
+          `Synthetic-mode input contains a possible ${detected.name}. Remove or replace all real identifiers with clearly synthetic values before continuing.`
+        );
+      }
+      return;
+    }
+    if (Array.isArray(candidate)) {
+      for (const item of candidate) visit(item);
+      return;
+    }
+    if (candidate !== null && typeof candidate === "object") {
+      for (const nested of Object.values(candidate as Record<string, unknown>)) visit(nested);
+    }
+  };
+  visit(value);
+}
+
+function assertNormalizedDatasetIntegrity(dataset: NormalizedDataset): void {
+  const evidenceIds = new Set<string>();
+  const documentMetadata = new Map<string, { kind: DocumentKind; name: string }>();
+  for (const item of dataset.evidence) {
+    if (evidenceIds.has(item.evidence_id)) {
+      throw new Error(
+        `Normalized dataset contains duplicate evidence ID ${item.evidence_id}. Re-run normalization from the original synthetic documents.`
+      );
+    }
+    evidenceIds.add(item.evidence_id);
+    const prior = documentMetadata.get(item.document_id);
+    if (
+      prior !== undefined &&
+      (prior.kind !== item.document_kind || prior.name !== item.document_name)
+    ) {
+      throw new Error(
+        `Normalized dataset contains inconsistent metadata for document ${item.document_id}. Re-run normalization from the original synthetic documents.`
+      );
+    }
+    documentMetadata.set(item.document_id, {
+      kind: item.document_kind,
+      name: item.document_name
+    });
+  }
+}
+
 function isSyntheticFixture(document: FixtureDocumentInput): document is SyntheticFixtureDocument {
   return "schema_version" in document;
 }
@@ -73,14 +133,69 @@ export function normalizeFixtureData(documentsInput: readonly FixtureDocumentInp
   if (documentsInput.length === 0) {
     throw new Error("At least one synthetic fixture document is required.");
   }
-  const documents = documentsInput.map((document) => FixtureDocumentInputSchema.parse(document));
-  const evidence: EvidenceItem[] = [];
+  const parsedDocuments = documentsInput.map((document) => FixtureDocumentInputSchema.parse(document));
+  assertNoSyntheticPii(parsedDocuments);
+  const taxpayerRefs = new Set(parsedDocuments.map((document) => document.taxpayer_ref));
+  const taxYears = new Set(parsedDocuments.map((document) => document.tax_year));
+  const assessmentYears = new Set(parsedDocuments.map((document) => document.assessment_year));
+  if (taxpayerRefs.size !== 1) {
+    throw new Error("All documents in one normalization request must use the same synthetic taxpayer_ref.");
+  }
+  if (taxYears.size !== 1 || assessmentYears.size !== 1) {
+    throw new Error("All documents in one normalization request must use the same FY2025-26 / AY2026-27 period.");
+  }
+
+  const documents: FixtureDocumentInput[] = [];
+  const documentFingerprints = new Map<string, string>();
   const warnings: string[] = [];
+  for (const document of parsedDocuments) {
+    const documentId = isSyntheticFixture(document) ? document.document_id : document.id;
+    const fingerprint = canonicalize(document);
+    const priorFingerprint = documentFingerprints.get(documentId);
+    if (priorFingerprint !== undefined) {
+      if (priorFingerprint !== fingerprint) {
+        throw new Error(
+          `Document ID collision for ${documentId}. Two different documents cannot share an identifier.`
+        );
+      }
+      warnings.push(`Deduplicated repeated document ${documentId}; its evidence was processed once.`);
+      continue;
+    }
+    documentFingerprints.set(documentId, fingerprint);
+    documents.push(document);
+  }
+
+  const evidence: EvidenceItem[] = [];
+  const evidenceIds = new Set<string>();
+  const fixtureSourceIds = new Set<string>();
+
+  const appendEvidence = (item: EvidenceItem): void => {
+    if (evidenceIds.has(item.evidence_id)) {
+      throw new Error(
+        `Duplicate evidence ID ${item.evidence_id}. Source and line identifiers must be unique within a fixture set.`
+      );
+    }
+    evidenceIds.add(item.evidence_id);
+    evidence.push(item);
+  };
 
   for (const document of documents) {
     if (isSyntheticFixture(document)) {
       const kind = fixtureKind(document.document_type);
+      const lineIds = new Set<string>();
       for (const record of document.records) {
+        if (fixtureSourceIds.has(record.source_id)) {
+          throw new Error(
+            `Duplicate source ID ${record.source_id}. Source identifiers must be unique across the fixture set.`
+          );
+        }
+        fixtureSourceIds.add(record.source_id);
+        if (lineIds.has(record.line_id)) {
+          throw new Error(
+            `Duplicate line ID ${record.line_id} in document ${document.document_id}. Each source row must be unique.`
+          );
+        }
+        lineIds.add(record.line_id);
         const category = supportedRecordCategory(record);
         if (!category) {
           if (record.category === "tax_credit") {
@@ -94,7 +209,7 @@ export function normalizeFixtureData(documentsInput: readonly FixtureDocumentInp
           );
           continue;
         }
-        evidence.push({
+        appendEvidence({
           evidence_id: record.source_id,
           document_id: document.document_id,
           document_kind: kind,
@@ -111,7 +226,7 @@ export function normalizeFixtureData(documentsInput: readonly FixtureDocumentInp
     }
 
     for (const entry of document.entries) {
-      evidence.push({
+      appendEvidence({
         evidence_id: `${document.id}:${entry.id}`,
         document_id: document.id,
         document_kind: document.kind,
@@ -134,6 +249,8 @@ export function normalizeFixtureData(documentsInput: readonly FixtureDocumentInp
 
   return NormalizedDatasetSchema.parse({
     assessment_year: ASSESSMENT_YEAR,
+    tax_year: "FY2025-26",
+    taxpayer_ref: [...taxpayerRefs][0],
     synthetic: true,
     evidence,
     warnings,
@@ -175,6 +292,8 @@ export function reconcileEvidence(
   toleranceInr = 1
 ): ReconciliationResult {
   const dataset = NormalizedDatasetSchema.parse(datasetInput);
+  assertNoSyntheticPii(dataset);
+  assertNormalizedDatasetIntegrity(dataset);
   if (!Number.isInteger(toleranceInr) || toleranceInr < 0 || toleranceInr > 10_000) {
     throw new Error("tolerance_inr must be a whole number from 0 to 10,000.");
   }
@@ -250,6 +369,7 @@ export function reconcileEvidence(
     .map((item) => item.category);
   return ReconciliationResultSchema.parse({
     assessment_year: ASSESSMENT_YEAR,
+    tolerance_inr: toleranceInr,
     ready_for_calculation: unresolvedCategories.length === 0,
     items,
     unresolved_categories: unresolvedCategories,
@@ -440,8 +560,37 @@ export function generateTaxProofPack(args: {
   const dataset = NormalizedDatasetSchema.parse(args.dataset);
   const reconciliation = ReconciliationResultSchema.parse(args.reconciliation);
   const calculation = RegimeComparisonSchema.parse(args.calculation);
+  assertNoSyntheticPii(dataset);
   if (!reconciliation.ready_for_calculation) {
     throw new Error("Cannot generate a final Tax Proof Pack while reconciliation conflicts remain unresolved.");
+  }
+  const confirmations: Partial<Record<IncomeCategory, number>> = {};
+  for (const item of reconciliation.items) {
+    if (item.status === "confirmed") {
+      if (item.selected_amount_inr === null) {
+        throw new Error(`Confirmed reconciliation item ${item.category} is missing its selected amount.`);
+      }
+      confirmations[item.category] = item.selected_amount_inr;
+    }
+  }
+  const recomputedReconciliation = reconcileEvidence(
+    dataset,
+    confirmations,
+    reconciliation.tolerance_inr
+  );
+  if (canonicalize(recomputedReconciliation) !== canonicalize(reconciliation)) {
+    throw new Error(
+      "Reconciliation integrity check failed. The supplied reconciliation is not reproducible from the source evidence and recorded confirmations."
+    );
+  }
+  const recomputedCalculation = compareTaxRegimes(
+    profile,
+    taxInputsFromReconciliation(recomputedReconciliation)
+  );
+  if (canonicalize(recomputedCalculation) !== canonicalize(calculation)) {
+    throw new Error(
+      "Calculation integrity check failed. The supplied calculation is not reproducible from the bound reconciliation and taxpayer profile."
+    );
   }
   const generatedAt = args.generatedAt ?? new Date().toISOString();
   const payload = {
@@ -450,19 +599,29 @@ export function generateTaxProofPack(args: {
     assessment_year: ASSESSMENT_YEAR,
     synthetic: true as const,
     supported_profile: profile,
-    reconciliation,
-    calculation,
+    reconciliation: recomputedReconciliation,
+    calculation: recomputedCalculation,
     evidence_index: dataset.evidence,
     unresolved_actions: reconciliation.items.flatMap((item) =>
       item.action_required ? [item.action_required] : []
     ),
     disclaimer: DISCLAIMER
   };
+  const datasetHash = createHash("sha256").update(canonicalize(dataset)).digest("hex");
+  const reconciliationHash = createHash("sha256")
+    .update(canonicalize(recomputedReconciliation))
+    .digest("hex");
+  const calculationHash = createHash("sha256")
+    .update(canonicalize(recomputedCalculation))
+    .digest("hex");
   const canonicalPayloadHash = createHash("sha256").update(canonicalize(payload)).digest("hex");
   return TaxProofPackSchema.parse({
     ...payload,
     integrity: {
       algorithm: "SHA-256",
+      dataset_hash: datasetHash,
+      reconciliation_hash: reconciliationHash,
+      calculation_hash: calculationHash,
       canonical_payload_hash: canonicalPayloadHash
     }
   });

@@ -16,6 +16,13 @@ export type IncomeCategory = z.infer<typeof IncomeCategorySchema>;
 export const DocumentKindSchema = z.enum(["form16", "ais", "broker_report", "other"]);
 export type DocumentKind = z.infer<typeof DocumentKindSchema>;
 
+export const SyntheticTaxpayerReferenceSchema = z
+  .string()
+  .regex(
+    /^(?:SYNTH|DEID|DEMO)[A-Za-z0-9_-]{0,100}$/i,
+    "Synthetic taxpayer references must start with SYNTH, DEID, or DEMO and contain no real identifier."
+  );
+
 export const FixtureEntrySchema = z
   .object({
     id: z.string().min(1).max(120).describe("Stable row or field identifier within the synthetic document."),
@@ -34,6 +41,10 @@ export const FixtureDocumentSchema = z
     kind: DocumentKindSchema,
     display_name: z.string().min(1).max(160),
     synthetic: z.literal(true).describe("Must be true; the MVP accepts synthetic demo data only."),
+    tax_year: z.literal("FY2025-26"),
+    assessment_year: z.literal("AY2026-27"),
+    taxpayer_ref: SyntheticTaxpayerReferenceSchema,
+    currency: z.literal("INR"),
     entries: z.array(FixtureEntrySchema).min(1).max(200)
   })
   .strict();
@@ -61,7 +72,7 @@ export const SyntheticFixtureDocumentSchema = z
     document_type: z.enum(["form16_like", "ais_like", "broker_pnl_like"]),
     tax_year: z.literal("FY2025-26"),
     assessment_year: z.literal("AY2026-27"),
-    taxpayer_ref: z.string().min(1).max(120),
+    taxpayer_ref: SyntheticTaxpayerReferenceSchema,
     taxpayer_display_name: z.string().min(1).max(160),
     issuer: z.string().min(1).max(200),
     currency: z.literal("INR"),
@@ -92,6 +103,8 @@ export type EvidenceItem = z.infer<typeof EvidenceItemSchema>;
 export const NormalizedDatasetSchema = z
   .object({
     assessment_year: z.literal(ASSESSMENT_YEAR),
+    tax_year: z.literal("FY2025-26"),
+    taxpayer_ref: SyntheticTaxpayerReferenceSchema,
     synthetic: z.literal(true),
     evidence: z.array(EvidenceItemSchema),
     warnings: z.array(z.string()),
@@ -130,6 +143,7 @@ export type ReconciliationItem = z.infer<typeof ReconciliationItemSchema>;
 export const ReconciliationResultSchema = z
   .object({
     assessment_year: z.literal(ASSESSMENT_YEAR),
+    tolerance_inr: z.number().int().min(0).max(10_000),
     ready_for_calculation: z.boolean(),
     items: z.array(ReconciliationItemSchema),
     unresolved_categories: z.array(IncomeCategorySchema),
@@ -216,6 +230,9 @@ export const TaxProofPackSchema = z
     unresolved_actions: z.array(z.string()),
     integrity: z.object({
       algorithm: z.literal("SHA-256"),
+      dataset_hash: z.string().regex(/^[a-f0-9]{64}$/),
+      reconciliation_hash: z.string().regex(/^[a-f0-9]{64}$/),
+      calculation_hash: z.string().regex(/^[a-f0-9]{64}$/),
       canonical_payload_hash: z.string().regex(/^[a-f0-9]{64}$/)
     }),
     disclaimer: z.string()
