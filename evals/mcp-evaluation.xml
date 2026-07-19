@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<evaluation>
+  <qa_pair>
+    <question>Load the read-only fixture set build_week_demo with lazytax_normalize_fixture_data. Across all three source documents, how many supported taxable-income evidence records survive normalization? Answer with digits only.</question>
+    <answer>5</answer>
+  </qa_pair>
+  <qa_pair>
+    <question>Normalize the read-only fixture set build_week_demo and inspect every normalization warning. How many source records are deliberately retained as warnings instead of being used as taxable income? Answer with digits only.</question>
+    <answer>7</answer>
+  </qa_pair>
+  <qa_pair>
+    <question>Normalize build_week_demo, then reconcile it with no confirmations and a tolerance of INR 1. For the one income category whose source totals disagree, what is the absolute spread in rupees? Answer with digits only and no separators.</question>
+    <answer>40000</answer>
+  </qa_pair>
+  <qa_pair>
+    <question>Normalize build_week_demo and run the initial reconciliation without guessing any disputed amount. Which normalized income category is the sole unresolved category? Answer with the exact category identifier only.</question>
+    <answer>salary</answer>
+  </qa_pair>
+  <qa_pair>
+    <question>Normalize build_week_demo, observe the initial conflict, then reconcile again after explicitly confirming salary at INR 1,840,000. Is the resulting dataset ready for deterministic calculation? Answer true or false in lowercase.</question>
+    <answer>true</answer>
+  </qa_pair>
+  <qa_pair>
+    <question>Normalize build_week_demo and reconcile salary at INR 1,840,000. In the calculation-ready reconciliation result, what savings-interest amount is selected from the single-source evidence? Answer in rupees using digits only.</question>
+    <answer>18500</answer>
+  </qa_pair>
+  <qa_pair>
+    <question>Normalize build_week_demo, confirm salary at INR 1,840,000, and inspect the calculation-ready evidence. What section 111A listed-equity short-term gain is selected after disregarding sale proceeds and cost basis as derived or unsupported records? Answer in rupees using digits only.</question>
+    <answer>45000</answer>
+  </qa_pair>
+  <qa_pair>
+    <question>Normalize build_week_demo, reconcile salary at INR 1,840,000, and compare regimes for the supported resident individual profile. What is the new-regime total tax including cess? Answer in rupees using digits only.</question>
+    <answer>172328</answer>
+  </qa_pair>
+  <qa_pair>
+    <question>Use the full read-only flow on build_week_demo: normalize, confirm salary at INR 1,840,000, and compare old and new regimes for the supported profile. What is the absolute difference between the two estimated total-tax results? Answer in rupees using digits only.</question>
+    <answer>206284</answer>
+  </qa_pair>
+  <qa_pair>
+    <question>Complete the read-only build_week_demo flow through lazytax_generate_tax_proof_pack after confirming salary at INR 1,840,000. Which integrity algorithm does the generated proof pack declare? Answer with the exact algorithm label only.</question>
+    <answer>SHA-256</answer>
+  </qa_pair>
+</evaluation>

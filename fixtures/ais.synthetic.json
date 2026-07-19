@@ -1,0 +1,60 @@
+{
+  "schema_version": "lazytax.fixture.v1",
+  "synthetic": true,
+  "notice": "FICTIONAL DEMO DATA — NOT AN INCOME TAX DEPARTMENT STATEMENT, NOT TAX ADVICE, AND NOT VALID FOR FILING.",
+  "document_id": "AIS-SYN-001",
+  "document_type": "ais_like",
+  "tax_year": "FY2025-26",
+  "assessment_year": "AY2026-27",
+  "taxpayer_ref": "SYNTH-TAXPAYER-001",
+  "taxpayer_display_name": "Asha Demo (fictional)",
+  "issuer": "Synthetic tax-information ledger",
+  "currency": "INR",
+  "records": [
+    {
+      "source_id": "AIS-SYN-001:AIS-L05",
+      "line_id": "AIS-L05",
+      "category": "salary",
+      "subtype": "gross_salary",
+      "description": "Regular salary reported by Example Employer",
+      "amount_inr": 1800000,
+      "match_key": "salary:example-employer:fy2025-26"
+    },
+    {
+      "source_id": "AIS-SYN-001:AIS-L06",
+      "line_id": "AIS-L06",
+      "category": "salary",
+      "subtype": "performance_bonus",
+      "description": "March performance bonus reported separately; absent from the Form 16-like fixture",
+      "amount_inr": 40000,
+      "match_key": "salary-bonus:example-employer:2026-03"
+    },
+    {
+      "source_id": "AIS-SYN-001:AIS-L07",
+      "line_id": "AIS-L07",
+      "category": "other_income",
+      "subtype": "savings_interest",
+      "description": "Interest credited by Example Bank (fictional)",
+      "amount_inr": 18500,
+      "match_key": "interest:example-bank:fy2025-26"
+    },
+    {
+      "source_id": "AIS-SYN-001:AIS-L08",
+      "line_id": "AIS-L08",
+      "category": "capital_gains",
+      "subtype": "listed_equity_sale_proceeds",
+      "description": "Aggregate listed-equity sale proceeds; cost basis is not present in this statement",
+      "amount_inr": 300000,
+      "match_key": "equity-sales:synthetic-account:fy2025-26"
+    },
+    {
+      "source_id": "AIS-SYN-001:AIS-L09",
+      "line_id": "AIS-L09",
+      "category": "tax_credit",
+      "subtype": "salary_tds",
+      "description": "Total salary TDS including INR 5,000 associated with the separately reported bonus",
+      "amount_inr": 145000,
+      "match_key": "tds:example-employer:fy2025-26"
+    }
+  ]
+}

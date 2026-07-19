@@ -1,0 +1,23 @@
+{
+  "name": "lazytax-build-week",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "build": "npm run build -w @lazytax/core && npm run build -w @lazytax/engine && npm run build -w @lazytax/mcp",
+    "test": "npm run test -w @lazytax/core && npm run test -w @lazytax/engine && npm run test -w @lazytax/mcp",
+    "check": "npm run build && npm test",
+    "mcp": "npm run start -w @lazytax/mcp"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.0",
+    "tsx": "^4.20.0",
+    "typescript": "^5.8.3"
+  }
+}

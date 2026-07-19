@@ -1,0 +1,149 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light" />
+    <title>LazyTax — Synthetic Evidence Viewer</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <a class="brand" href="#top" aria-label="LazyTax evidence viewer home">
+        <span class="brand-mark" aria-hidden="true">L</span>
+        <span>LazyTax</span>
+      </a>
+      <span class="demo-badge">Synthetic demo · not tax advice</span>
+    </header>
+
+    <main id="top">
+      <section class="hero" aria-labelledby="page-title">
+        <div>
+          <p class="eyebrow">Tax Proof Pack · AY 2026–27</p>
+          <h1 id="page-title">Every number has a source.</h1>
+          <p class="hero-copy">
+            A read-only evidence view for <strong>Asha Demo</strong>, a fictional taxpayer. It shows how three synthetic documents were reconciled before calculation.
+          </p>
+        </div>
+        <div class="status-card" aria-label="Verification status">
+          <div class="status-icon" aria-hidden="true">✓</div>
+          <div>
+            <strong>Ready for review</strong>
+            <span>0 blocking income mismatches · 1 confirmed resolution</span>
+          </div>
+        </div>
+      </section>
+
+      <nav class="tabs" aria-label="Proof pack sections">
+        <button class="tab active" type="button" data-panel="summary" aria-selected="true">Summary</button>
+        <button class="tab" type="button" data-panel="evidence" aria-selected="false">Evidence</button>
+        <button class="tab" type="button" data-panel="calculation" aria-selected="false">Calculation</button>
+        <button class="tab" type="button" data-panel="audit" aria-selected="false">Audit trail</button>
+      </nav>
+
+      <section id="summary" class="panel active" aria-labelledby="summary-title">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">Lower mechanical estimate</p>
+            <h2 id="summary-title">New regime · ₹1,72,328 estimated tax</h2>
+          </div>
+          <button id="download-proof" class="secondary-button" type="button">Export viewer projection</button>
+        </div>
+
+        <div id="metric-grid" class="metric-grid" aria-label="Reconciled totals"></div>
+
+        <article class="callout">
+          <div class="callout-icon" aria-hidden="true">!</div>
+          <div>
+            <h3>Why the documents initially disagreed</h3>
+            <p>
+              The AIS-like fixture contains a ₹40,000 bonus that is absent from the Form 16-like fixture. It was explicitly confirmed for this demo and included in income. Seven non-income or derived source lines—including deduction, sale-proceeds, cost-basis and TDS rows—remain normalization warnings and are excluded from this narrow calculation.
+            </p>
+          </div>
+        </article>
+
+        <div class="two-column">
+          <article class="card">
+            <div class="card-heading">
+              <div>
+                <p class="eyebrow">Regime comparison</p>
+                <h3>₹2,06,284 lower</h3>
+              </div>
+              <span class="pill good">New regime</span>
+            </div>
+            <div class="bar-row">
+              <span>New</span><div class="bar-track"><div class="bar new-bar"></div></div><strong>₹1,72,328</strong>
+            </div>
+            <div class="bar-row">
+              <span>Old</span><div class="bar-track"><div class="bar old-bar"></div></div><strong>₹3,78,612</strong>
+            </div>
+            <p class="fine-print">Illustrative ruleset: AY2026-27 MVP. This is a mechanical comparison, not a recommendation. Tax credits and payable/refund calculations are outside this build.</p>
+          </article>
+
+          <article class="card">
+            <div class="card-heading">
+              <div>
+                <p class="eyebrow">Source coverage</p>
+                <h3>3 of 3 documents loaded</h3>
+              </div>
+              <span class="pill">12 lines</span>
+            </div>
+            <ul class="source-list">
+              <li><span class="source-dot mint"></span><span>Form 16-like</span><strong>4 lines</strong></li>
+              <li><span class="source-dot violet"></span><span>AIS-like</span><strong>5 lines</strong></li>
+              <li><span class="source-dot amber"></span><span>Broker P&amp;L-like</span><strong>3 lines</strong></li>
+            </ul>
+          </article>
+        </div>
+      </section>
+
+      <section id="evidence" class="panel" aria-labelledby="evidence-title">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">Source-linked reconciliation</p>
+            <h2 id="evidence-title">Evidence ledger</h2>
+          </div>
+          <span class="pill good">All blocking conflicts resolved</span>
+        </div>
+        <div id="evidence-list" class="evidence-list"></div>
+      </section>
+
+      <section id="calculation" class="panel" aria-labelledby="calculation-title">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">Deterministic engine</p>
+            <h2 id="calculation-title">New-regime calculation trace</h2>
+          </div>
+          <span class="pill">FY2025-26 demo v1</span>
+        </div>
+        <div id="calculation-table" class="calculation-table"></div>
+        <article class="method-note">
+          <strong>Division of responsibility</strong>
+          <p>GPT‑5.6 interprets and explains evidence. Versioned deterministic code performs arithmetic. The user confirms every material resolution.</p>
+        </article>
+      </section>
+
+      <section id="audit" class="panel" aria-labelledby="audit-title">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">Reproducible decisions</p>
+            <h2 id="audit-title">Audit trail</h2>
+          </div>
+          <span class="pill">Proof ID LTX-SYN-2026-001</span>
+        </div>
+        <ol id="audit-list" class="timeline"></ol>
+        <article class="boundary-card">
+          <h3>Demo boundary</h3>
+          <p>This viewer does not file a return, contact a government portal, store real documents, or provide tax advice. All names, issuers, identifiers, and amounts are fictional.</p>
+        </article>
+      </section>
+    </main>
+
+    <footer>
+      <span>LazyTax evidence viewer</span>
+      <span>Read-only · synthetic data · local demo</span>
+    </footer>
+
+    <script src="./viewer.js"></script>
+  </body>
+</html>

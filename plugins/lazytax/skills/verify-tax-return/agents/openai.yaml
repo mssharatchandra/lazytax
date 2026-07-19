@@ -1,0 +1,4 @@
+interface:
+  display_name: "Verify Tax Return"
+  short_description: "Evidence-first Indian tax return verification"
+  default_prompt: "Use $verify-tax-return to verify these synthetic tax documents and show every discrepancy."
