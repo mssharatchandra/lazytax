@@ -4,7 +4,7 @@ import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 import { createLazyTaxServer } from "../src/server.js";
 
-test("server exposes seven focused tools and completes the bundled proof-pack workflow", async () => {
+test("server exposes eight focused tools and completes the bundled proof-pack workflow", async () => {
   const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
   const server = createLazyTaxServer();
   const client = new Client({ name: "lazytax-test-client", version: "0.1.0" });
@@ -20,6 +20,7 @@ test("server exposes seven focused tools and completes the bundled proof-pack wo
         "lazytax_normalize_fixture_data",
         "lazytax_normalize_private_tax_facts",
         "lazytax_plan_filing_session",
+        "lazytax_plan_practitioner_queue",
         "lazytax_reconcile_evidence"
       ]
     );
@@ -64,6 +65,46 @@ test("server exposes seven focused tools and completes the bundled proof-pack wo
       (filingPlan.structuredContent as { next_best_action?: { action_id?: string } })
         .next_best_action?.action_id,
       "extract_documents"
+    );
+
+    const practitionerPlan = await client.callTool({
+      name: "lazytax_plan_practitioner_queue",
+      arguments: {
+        practitioner_ref: "actor_1111111111111111",
+        acting_roles: ["preparer"],
+        cases: [
+          {
+            case_ref: "case_aaaaaaaaaaaaaaaa",
+            assessment_year: "2026-27",
+            role_assignments: {
+              taxpayer: "actor_2222222222222222",
+              preparer: "actor_1111111111111111",
+              reviewer: "actor_3333333333333333"
+            },
+            status: "reconciliation",
+            priority: "high",
+            evidence_item_count: 8,
+            missing_item_count: 0,
+            material_conflict_count: 1,
+            review_state: "not_started",
+            blocker_kind: "none"
+          }
+        ]
+      }
+    });
+    assert.equal(practitionerPlan.isError, undefined);
+    assert.equal(
+      (practitionerPlan.structuredContent as { summary?: { actionable_now?: number } }).summary
+        ?.actionable_now,
+      1
+    );
+    assert.equal(
+      (
+        practitionerPlan.structuredContent as {
+          next_best_action?: { action?: { action_id?: string } };
+        }
+      ).next_best_action?.action?.action_id,
+      "resolve_material_conflicts"
     );
 
     const normalized = await client.callTool({

@@ -346,3 +346,4 @@ export type TaxProofPack = z.infer<typeof TaxProofPackSchema>;
 
 export * from "./us-stocks.js";
 export * from "./filing-session.js";
+export * from "./practitioner.js";

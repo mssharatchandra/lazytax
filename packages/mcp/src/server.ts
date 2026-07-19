@@ -11,6 +11,8 @@ import {
   IncomeCategorySchema,
   LocalPrivateFixtureDocumentSchema,
   NormalizedDatasetSchema,
+  PractitionerQueueInputSchema,
+  PractitionerQueuePlanSchema,
   ReconciliationResultSchema,
   RegimeComparisonSchema,
   SyntheticFixtureDocumentSchema,
@@ -26,6 +28,7 @@ import {
   generateTaxProofPack,
   normalizeFixtureData,
   planFilingSession,
+  planPractitionerQueue,
   reconcileEvidence,
   taxInputsFromReconciliation
 } from "@lazytax/engine";
@@ -167,6 +170,35 @@ export function createLazyTaxServer(): McpServer {
         return actionableError(
           error,
           "Pass only privacy-safe workflow state and opaque references; do not include taxpayer identifiers, document contents, credentials or OTPs."
+        );
+      }
+    }
+  );
+
+  server.registerTool(
+    "lazytax_plan_practitioner_queue",
+    {
+      title: "Plan a Practitioner Tax Work Queue",
+      description:
+        "Build a deterministic, role-aware read-only work queue for a preparer or reviewer across shared AY 2026-27 tax cases. It summarizes assigned cases, priority, evidence and missing-item counts, material conflicts, review readiness, blockers, and the next best practitioner action. It accepts and returns only pseudonymous actor_[16 hex] and case_[16 hex] references plus enumerated state and counts—never names, PAN, Aadhaar, contact details, account identifiers, credentials, document content, or free-text notes. It does not mutate a case, contact a taxpayer, file, submit, pay, or e-verify.",
+      inputSchema: PractitionerQueueInputSchema,
+      outputSchema: PractitionerQueuePlanSchema,
+      annotations: READ_ONLY_ANNOTATIONS
+    },
+    async (input) => {
+      try {
+        const output = planPractitionerQueue(input);
+        const next = output.next_best_action;
+        return workflowResult(
+          output,
+          next
+            ? `${output.summary.total_assigned_cases} assigned case(s), ${output.summary.actionable_now} actionable now. Next: ${next.action.title} for ${next.case_ref}.`
+            : `${output.summary.total_assigned_cases} assigned case(s); no practitioner-owned action is currently available.`
+        );
+      } catch (error) {
+        return actionableError(
+          error,
+          "Pass only unique pseudonymous actor_[16 hex] and case_[16 hex] references with consistent enumerated case state and aggregate counts; exclude all taxpayer identifiers and free text."
         );
       }
     }

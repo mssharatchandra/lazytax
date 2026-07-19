@@ -13,8 +13,10 @@ const VIEWER_DIRECTORY = dirname(fileURLToPath(import.meta.url));
 const STATIC_FILES = new Map([
   ["/", ["index.html", "text/html; charset=utf-8"]],
   ["/index.html", ["index.html", "text/html; charset=utf-8"]],
+  ["/practitioner.html", ["practitioner.html", "text/html; charset=utf-8"]],
   ["/styles.css", ["styles.css", "text/css; charset=utf-8"]],
-  ["/viewer.js", ["viewer.js", "text/javascript; charset=utf-8"]]
+  ["/viewer.js", ["viewer.js", "text/javascript; charset=utf-8"]],
+  ["/practitioner.js", ["practitioner.js", "text/javascript; charset=utf-8"]]
 ]);
 
 const SECURITY_HEADERS = {
@@ -74,6 +76,96 @@ async function serveStatic(response, pathname) {
   return true;
 }
 
+export function buildPractitionerQueue(workflow) {
+  const proofHash = workflow.proof_pack.integrity.canonical_payload_hash;
+  const initialConflictCount = workflow.initial_reconciliation.unresolved_categories.length;
+  const warningCount = workflow.normalized.warnings.length;
+  const evidenceCount = workflow.normalized.evidence.length;
+  const unresolvedProofActions = workflow.proof_pack.unresolved_actions.length;
+  const sharedRuntime = {
+    algorithm: workflow.proof_pack.integrity.algorithm,
+    artifact_hash: proofHash,
+    generated_via: workflow.generated_via
+  };
+  const reviewerControl = (makerRef, checkerRef) => ({
+    maker: { actor_ref: makerRef, role: "tax_preparer" },
+    checker: { actor_ref: checkerRef, role: "chartered_accountant" },
+    self_approval_allowed: false
+  });
+  const handoff = (state) => ({
+    from_role: "taxpayer",
+    to_role: "chartered_accountant",
+    state,
+    shared_artifact_hash: proofHash
+  });
+
+  const cases = [
+    {
+      case_ref: "SYN-CASE-RECON-001",
+      case_label: "Synthetic reconciliation review",
+      workflow_stage: "blocked_on_taxpayer_confirmation",
+      risk: {
+        score: Math.min(100, 88 + initialConflictCount * 4),
+        level: "high",
+        reasons: [
+          `${initialConflictCount} material source conflict requires explicit confirmation`,
+          `${warningCount} excluded context rows require review before expansion`
+        ]
+      },
+      counts: { evidence: evidenceCount, warnings: warningCount, blocking_items: initialConflictCount },
+      review_control: reviewerControl("synthetic-preparer-01", "synthetic-checker-01"),
+      handoff: handoff("awaiting_taxpayer_confirmation")
+    },
+    {
+      case_ref: "SYN-CASE-CHECK-002",
+      case_label: "Synthetic checker review",
+      workflow_stage: "ready_for_checker",
+      risk: {
+        score: 58,
+        level: "medium",
+        reasons: [
+          "A material conflict was resolved by explicit synthetic confirmation",
+          `${warningCount} unsupported or contextual rows remain isolated`
+        ]
+      },
+      counts: { evidence: evidenceCount, warnings: warningCount, blocking_items: unresolvedProofActions },
+      review_control: reviewerControl("synthetic-preparer-02", "synthetic-checker-02"),
+      handoff: handoff("accepted_for_checker_review")
+    },
+    {
+      case_ref: "SYN-CASE-SHARE-003",
+      case_label: "Synthetic taxpayer handback",
+      workflow_stage: "ready_for_taxpayer_review",
+      risk: {
+        score: 18,
+        level: "low",
+        reasons: [
+          "Deterministic calculation completed",
+          `${unresolvedProofActions} unresolved proof-pack actions remain`
+        ]
+      },
+      counts: { evidence: evidenceCount, warnings: warningCount, blocking_items: unresolvedProofActions },
+      review_control: reviewerControl("synthetic-preparer-03", "synthetic-checker-03"),
+      handoff: handoff("returned_to_taxpayer_for_review")
+    }
+  ];
+
+  cases.sort((left, right) => right.risk.score - left.risk.score);
+  return {
+    schema_version: "lazytax.practitioner-viewer-projection.v1",
+    synthetic: true,
+    projection_note:
+      "Three synthetic case states projected from one canonical live MCP workflow; they are not independent taxpayer computations.",
+    role_context: {
+      active_role: "practitioner",
+      permissions: ["view_synthetic_case_summary", "request_taxpayer_confirmation", "perform_checker_review"],
+      denied: ["view_raw_documents", "approve_own_work", "file_return", "view_other_organization_cases"]
+    },
+    source_runtime: sharedRuntime,
+    cases
+  };
+}
+
 export function createViewerHttpServer() {
   return createServer(async (request, response) => {
     try {
@@ -107,6 +199,28 @@ export function createViewerHttpServer() {
           approveFinalProofPack: true
         });
         sendJson(response, 200, workflow);
+        return;
+      }
+
+      if (request.method === "POST" && requestUrl.pathname === "/api/practitioner-queue") {
+        if (!isAllowedBrowserOrigin(request)) {
+          sendJson(response, 403, { error: "Cross-origin practitioner access is not allowed." });
+          return;
+        }
+        const body = await readJsonBody(request);
+        if (body?.role !== "practitioner") {
+          sendJson(response, 403, { error: "The synthetic practitioner queue requires the practitioner role." });
+          return;
+        }
+        if (body.include_synthetic_cases !== true) {
+          sendJson(response, 400, { error: "The local viewer exposes synthetic cases only." });
+          return;
+        }
+        const workflow = await runSyntheticDemoWorkflow({
+          confirmedSalaryInr: BUILD_WEEK_CONFIRMED_SALARY_INR,
+          approveFinalProofPack: true
+        });
+        sendJson(response, 200, buildPractitionerQueue(workflow));
         return;
       }
 

@@ -1,7 +1,7 @@
 {
   "name": "lazytax",
-  "version": "0.1.0+codex.20260719172731",
-  "description": "A secure CA-style companion that takes Indian taxpayers from documents to a reviewed filing.",
+  "version": "0.1.0+codex.20260719182323",
+  "description": "A secure AI tax caseworker for Indian taxpayers, CAs, and tax professionals.",
   "author": {
     "name": "Sharat Chandra MS",
     "url": "https://github.com/mssharatchandra"
@@ -14,13 +14,15 @@
     "india",
     "verification",
     "provenance",
+    "chartered-accountant",
+    "practitioner",
     "mcp"
   ],
   "skills": "./skills/",
   "interface": {
     "displayName": "LazyTax",
-    "shortDescription": "Your secure CA-style companion for Indian tax filing.",
-    "longDescription": "LazyTax takes over the tax-filing legwork: it consolidates real private documents, finds duplicate and missing evidence, prioritizes AIS, Form 26AS and prefill collection before asking questions, reconciles source records, calculates supported domestic and US-stock tax deterministically, and stays with the taxpayer through review and a consent-controlled filing handoff.",
+    "shortDescription": "One tax case for taxpayers and their trusted practitioners.",
+    "longDescription": "LazyTax is the agentic tax casework layer for Indian taxpayers, CAs, and tax professionals. Its taxpayer concierge consolidates authorized documents, finds missing evidence, reconciles sources, and explains deterministic results. Its practitioner AI-junior workflow prioritizes assigned cases, preserves evidence lineage, and supports maker-checker review. Both roles share one Tax Proof Pack; LazyTax augments professional judgment and never submits, pays, or e-verifies without explicit contextual approval.",
     "developerName": "Sharat Chandra MS",
     "category": "Productivity",
     "capabilities": [
@@ -30,8 +32,8 @@
     "websiteURL": "https://github.com/mssharatchandra/lazytax",
     "defaultPrompt": [
       "Take over my tax filing: organize these documents, find what's missing, and guide me to completion.",
-      "Collect my tax sources first, then ask only what you genuinely cannot discover.",
-      "Explain my return like a careful CA and keep working until only my approvals remain."
+      "Act as my AI tax junior: prioritize my assigned cases and show what needs preparer or reviewer action.",
+      "Prepare this shared tax case for independent review with source-linked conflicts and a Tax Proof Pack."
     ]
   },
   "mcpServers": "./.mcp.json"

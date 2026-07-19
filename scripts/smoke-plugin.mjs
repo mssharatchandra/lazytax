@@ -12,6 +12,7 @@ const expectedTools = [
   "lazytax_normalize_fixture_data",
   "lazytax_normalize_private_tax_facts",
   "lazytax_plan_filing_session",
+  "lazytax_plan_practitioner_queue",
   "lazytax_reconcile_evidence"
 ];
 
@@ -32,7 +33,8 @@ async function callStructured(client, name, arguments_) {
     name,
     arguments:
       name === "lazytax_compute_us_stock_investments" ||
-      name === "lazytax_plan_filing_session"
+      name === "lazytax_plan_filing_session" ||
+      name === "lazytax_plan_practitioner_queue"
         ? arguments_
         : { ...arguments_, response_format: "json" }
   });
@@ -83,6 +85,35 @@ async function runHappyPath(pluginRoot, label) {
     });
     assert.equal(filingPlan.next_best_action.action_id, "extract_documents");
     assert.equal(filingPlan.can_agent_continue_without_user, true);
+
+    const practitionerPlan = await callStructured(client, "lazytax_plan_practitioner_queue", {
+      practitioner_ref: "actor_1111111111111111",
+      acting_roles: ["preparer"],
+      cases: [
+        {
+          case_ref: "case_aaaaaaaaaaaaaaaa",
+          assessment_year: "2026-27",
+          role_assignments: {
+            taxpayer: "actor_2222222222222222",
+            preparer: "actor_1111111111111111",
+            reviewer: "actor_3333333333333333"
+          },
+          status: "reconciliation",
+          priority: "high",
+          evidence_item_count: 8,
+          missing_item_count: 0,
+          material_conflict_count: 1,
+          review_state: "not_started",
+          blocker_kind: "none"
+        }
+      ]
+    });
+    assert.equal(practitionerPlan.summary.total_assigned_cases, 1);
+    assert.equal(practitionerPlan.summary.actionable_now, 1);
+    assert.equal(
+      practitionerPlan.next_best_action.action.action_id,
+      "resolve_material_conflicts"
+    );
 
     const usStockResult = await callStructured(client, "lazytax_compute_us_stock_investments", {
       data_mode: "local_private",
@@ -251,7 +282,7 @@ async function runHappyPath(pluginRoot, label) {
     assert.match(proof.integrity.canonical_payload_hash, /^[a-f0-9]{64}$/);
 
     process.stdout.write(
-      `LazyTax ${label} plugin smoke passed: 7 tools, CA-style next action, US-stock FIFO/FX bridge, masked private settlement, deterministic comparison and proof pack.\n`
+      `LazyTax ${label} plugin smoke passed: 8 tools, taxpayer and practitioner next actions, US-stock FIFO/FX bridge, masked private settlement, deterministic comparison and proof pack.\n`
     );
   } finally {
     await client.close();

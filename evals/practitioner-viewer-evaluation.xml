@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<evaluation>
+  <qa_pair>
+    <question>Run the local viewer, request POST /api/practitioner-queue with role practitioner and include_synthetic_cases true, and inspect the returned role context. Which role is active? Answer with the exact role identifier only.</question>
+    <answer>practitioner</answer>
+  </qa_pair>
+  <qa_pair>
+    <question>Request the synthetic practitioner queue. How many case projections are returned? Answer with digits only.</question>
+    <answer>3</answer>
+  </qa_pair>
+  <qa_pair>
+    <question>Request the synthetic practitioner queue and use its risk ordering. Which case reference is first? Answer with the exact case reference only.</question>
+    <answer>SYN-CASE-RECON-001</answer>
+  </qa_pair>
+  <qa_pair>
+    <question>Inspect every review_control object in the synthetic practitioner queue. Is self-approval allowed for any case? Answer true or false in lowercase.</question>
+    <answer>false</answer>
+  </qa_pair>
+  <qa_pair>
+    <question>Inspect a handoff in the synthetic practitioner queue. Express the shared case direction as from_role-&gt;to_role using exact role identifiers.</question>
+    <answer>taxpayer-&gt;chartered_accountant</answer>
+  </qa_pair>
+  <qa_pair>
+    <question>Attempt to request POST /api/practitioner-queue with role taxpayer and include_synthetic_cases true. Which HTTP status code is returned? Answer with digits only.</question>
+    <answer>403</answer>
+  </qa_pair>
+</evaluation>

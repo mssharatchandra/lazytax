@@ -15,6 +15,22 @@ action before questioning the taxpayer whenever
 `can_agent_continue_without_user` is true. A flag that an item
 `blocks_complete_liability_only` never blocks safe partial progress.
 
+## `lazytax_plan_practitioner_queue`
+
+Input: a read-only set of pseudonymous case summaries for an authorized
+practitioner workspace. Include only opaque case reference, workflow stage,
+maker/checker/client ownership, evidence completeness, reconciliation state,
+scope flags, review state and age/urgency signals. Never include taxpayer
+identifiers, document text, account data, amounts, credentials, OTPs or other
+verification secrets.
+
+Expected output: a deterministic queue order and one next-best action per case,
+with reason, owner, review status and whether the case is maker-complete,
+checker-required or client-required. This tool plans work only: it must not
+mutate a case, approve professional judgment, contact a client, generate a
+second proof artifact, or authorize filing. Continue to use the same canonical
+case and Tax Proof Pack referenced by the queue item.
+
 ## `lazytax_normalize_fixture_data`
 
 Input: the explicitly authorized synthetic fixture set or supported fixture payload.
@@ -52,6 +68,10 @@ Input: normalized evidence, reconciliation output, calculation output,
 unsupported items.
 
 Expected output: an artifact path or content, generation timestamp, included sections, and remaining warnings. It must describe verification/preparation only and must never report filing, government validation, acknowledgement, or professional certification.
+
+Taxpayer and practitioner views must reference the same generated proof pack.
+Practitioner maker/checker metadata may be attached as review state, but must
+not fork the underlying evidence, calculation or integrity hash.
 
 ## Failure behavior
 

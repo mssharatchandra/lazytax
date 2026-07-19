@@ -4,12 +4,17 @@
 > cannot safely discover.
 
 LazyTax is an installable Codex/ChatGPT plugin that behaves like a proactive,
-CA-style Indian tax-filing companion. It consolidates synthetic fixtures or
+CA-style Indian tax-filing companion and an AI junior for existing CAs and tax
+professionals. It consolidates synthetic fixtures or
 explicitly authorized real documents, deterministically plans the next filing
 action, collects likely missing authoritative sources before interrogating the
 taxpayer, reconciles evidence, delegates supported calculations to a local
 engine, masks private identifiers in tool outputs, and produces a source-
 indexed Tax Proof Pack.
+
+The product uses one canonical case with two role-aware surfaces: a taxpayer
+concierge and a practitioner cockpit. It augments CAs; it does not impersonate
+or replace professional judgment.
 
 **OpenAI Build Week track:** Apps for Your Life  
 **Status:** CA-companion pivot shipped locally; synthetic judge mode and private
@@ -74,6 +79,8 @@ surfaced as review flags.
 - Local TypeScript MCP server using stdio and structured tool outputs.
 - Deterministic CA-style filing-session planner that prioritizes safe work and
   authoritative source collection before residual user questions.
+- Strict pseudonymous taxpayer/preparer/reviewer contracts and a deterministic
+  materiality-ranked practitioner queue exposed through MCP.
 - Separate synthetic and private normalization tools so real data cannot be
   accidentally relabelled as demo data.
 - Source normalization with stable evidence IDs and locators.
@@ -83,8 +90,8 @@ surfaced as review flags.
   STCG/LTCG tax bridge, and Schedule CG/FSI/FA preparation.
 - Evidence index, decisions, assumptions, rule sources and SHA-256 integrity in
   a structured Tax Proof Pack.
-- Three synthetic source documents, golden tests, ten MCP evals and an evidence
-  viewer.
+- Three synthetic source documents, golden tests, MCP/practitioner evals, a
+  taxpayer evidence viewer and a separate synthetic practitioner cockpit.
 
 It does **not** produce official ITR JSON, submit to the government portal,
 handle credentials/OTPs, or certify legal correctness.
@@ -124,6 +131,7 @@ See [JUDGE_GUIDE.md](JUDGE_GUIDE.md) for the complete judge path and
 | Tool | Purpose |
 |---|---|
 | `lazytax_plan_filing_session` | Select one privacy-safe next filing action and keep partial progress moving |
+| `lazytax_plan_practitioner_queue` | Build a role-aware, PII-free assigned-case queue and next practitioner action |
 | `lazytax_normalize_fixture_data` | Load/validate the bundled demo or supplied synthetic fixture objects and preserve provenance |
 | `lazytax_normalize_private_tax_facts` | Pseudonymize tax facts from explicitly authorized private documents and return masked evidence |
 | `lazytax_compute_us_stock_investments` | Match supported US-stock lots and prepare source-linked CG/FSI/FA bridge facts |
@@ -131,7 +139,7 @@ See [JUDGE_GUIDE.md](JUDGE_GUIDE.md) for the complete judge path and
 | `lazytax_calculate_compare_regimes` | Deterministically calculate the supported old/new-regime estimates |
 | `lazytax_generate_tax_proof_pack` | Generate the structured evidence and calculation artifact |
 
-All seven tools are read-only and non-destructive. Planning, normalization, reconciliation
+All eight tools are read-only and non-destructive. Planning, normalization, reconciliation
 and calculation are idempotent; proof-pack generation is timestamped and
 therefore marked non-idempotent despite having no side effects. The local stdio
 server logs only failures to stderr.
@@ -160,6 +168,9 @@ Then open `http://127.0.0.1:4173` and click **Run synthetic MCP workflow**.
 The loopback-only viewer runs the canonical fixture set through the real MCP
 tools in memory, renders their structured output, and exports the generated Tax
 Proof Pack. It rejects cross-origin generation and accepts no uploaded data.
+Open `http://127.0.0.1:4173/practitioner.html` for the synthetic practitioner
+queue. That surface demonstrates risk ordering and maker-checker handoff; it is
+not authentication, tenancy or a production case store.
 
 ## Codex and GPT-5.6 collaboration
 
@@ -231,6 +242,7 @@ docs/                 production analytics, distribution and coverage plans
 .telemetry/            product model, current-state audit and target event contract
 PLAN.md               Build Week scope lock plus archived standalone roadmap
 TICKETS.md            BW-P0 execution backlog plus post-hackathon backlog
+AGENTS.md             canonical product direction, progress and engineering contract
 ```
 
 ## License

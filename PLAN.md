@@ -1,5 +1,15 @@
 # LazyTax — Master Plan (Build Week Scope Lock v2.0)
 
+> **Practitioner + taxpayer direction lock — effective 19 Jul 2026.** LazyTax is
+> the agentic tax casework layer for Indian CAs/tax professionals and their
+> clients: one canonical evidence-backed case, a taxpayer concierge and a
+> practitioner cockpit. The practitioner is the trust/distribution wedge; the
+> taxpayer concierge is the experience layer. LazyTax augments professional
+> judgment and interoperates with existing filing software. It does not present
+> itself as an AI CA or maintain separate consumer/pro calculation paths. The
+> complete operating contract, truthful progress ledger and execution order are
+> locked in [`AGENTS.md`](AGENTS.md).
+
 > **CA-babysitter pivot — effective 19 Jul 2026.** The product outcome is now a
 > secure filing companion, not a verification report. The deterministic proof
 > kernel remains the trust foundation, but the agent must extract and collect
@@ -37,6 +47,8 @@ Four source-of-truth documents now govern this path:
 - [`docs/CA_BABYSITTER_PIVOT.md`](docs/CA_BABYSITTER_PIVOT.md) — proactive
   filing experience, secure real-data architecture, portal rails and compliance
   gates.
+- [`AGENTS.md`](AGENTS.md) — canonical dual-role product contract, verified
+  progress, release invariants and Now/Next/Later execution order.
 
 The Build Week local plugin remains zero-telemetry and local-first. No PostHog
 SDK is added until consent, privacy notice, vendor/region approval, allowlisted
@@ -103,12 +115,13 @@ case outside the implemented golden tests.
 ```text
 Codex / ChatGPT Work mode (GPT-5.6)
   -> LazyTax plugin
-       -> verify-tax-return skill (workflow + guardrails)
+       -> verify-tax-return skill (taxpayer concierge + practitioner AI junior)
        -> local MCP server over stdio (typed tools)
             -> source normalizer and reconciler
+            -> taxpayer filing-session + practitioner-queue planners
             -> deterministic AY 2026-27 demo engine
             -> Tax Proof Pack generator
-       -> local evidence viewer (human inspection)
+       -> taxpayer evidence viewer + synthetic practitioner cockpit
 ```
 
 The host model may interpret, summarize, choose tools and explain conflicts. It

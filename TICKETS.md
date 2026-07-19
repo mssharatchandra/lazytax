@@ -1,5 +1,12 @@
 # LazyTax — Ticket Backlog (Linear-ready)
 
+> **Direction lock and live Linear sync — 19 Jul 2026.** LazyTax is the AI tax
+> caseworker shared by taxpayers and practitioners: one canonical case, a
+> taxpayer concierge and a CA/tax-professional cockpit. The live Linear project
+> is now **LazyTax — AI Tax Caseworker for CAs + Taxpayers**, with 81 issues.
+> LZ-60–81 map to CUR-94–115; LZ-69/CUR-103 is Done; LZ-74/CUR-108 and
+> LZ-75/CUR-109 are In Progress. `AGENTS.md` is the operating contract.
+
 > **Build Week execution override — 19 Jul 2026.** BW tickets below are P0 and
 > supersede the prior Wave 0–6 order until submission. Existing LZ tickets are
 > preserved as the post-hackathon backlog; LZ-54/LZ-55 are absorbed into this
@@ -607,7 +614,7 @@ personal-tax proof kernel meets its reliability and retention targets.
 ## CA-babysitter pivot — seamless secure filing
 
 ### LZ-69 · Progressive filing-session orchestrator and CA conversation contract
-`pkg:core`+`pkg:engine`+`pkg:mcp`+`pkg:plugin` · deps: BW-6 · P0 · implemented MVP
+`pkg:core`+`pkg:engine`+`pkg:mcp`+`pkg:plugin` · deps: BW-6 · P0 · **Done (MVP)**
 Maintain privacy-safe filing-session state and return one next-best action.
 Extract and consolidate before questioning; collect AIS/TIS, Form 26AS and
 prefill before residual-income checks; distinguish “blocks complete liability”
@@ -671,3 +678,86 @@ collected without manual retyping; ≥80% reviewed-draft completion; zero secret
 in telemetry; every error becomes a scrubbed regression fixture and owned ticket.
 **V:** beta report, privacy-safe funnel, interview synthesis, incident log and
 signed decision on ERI/public expansion.
+
+---
+
+## Practitioner distribution workstream — one case, two surfaces
+
+### LZ-74 · Shared tax-case domain and role model
+`pkg:core`+`pkg:platform` · deps: LZ-53, LZ-69 · P0 · **In Progress**
+Create one versioned case shared by taxpayer, preparer and reviewer. Provide
+role-scoped projections, evidence/proof lineage, lifecycle states, review hashes
+and stale-review invalidation. The current strict pseudonymous in-memory contract
+is implemented; durable storage and authorization remain.
+**AC:** no separate consumer/pro tax truth; distinct maker/checker enforced;
+cross-role and cross-tenant reads denied; every mutation is versioned and audited;
+stale review/consent cannot authorize an action.
+**V:** schema/state-machine/property tests + authz matrix + replay test.
+
+### LZ-75 · Practitioner cockpit and materiality-ranked work queue
+`pkg:engine`+`pkg:mcp`+`pkg:web` · deps: LZ-74 · P0 · **In Progress**
+Provide assigned-client queue, missing-evidence/material-conflict summaries,
+deadline/risk priority and one next-best practitioner action. The deterministic
+queue engine, eighth MCP tool and synthetic viewer are implemented; authenticated
+durable cases and direct viewer-to-tool integration remain.
+**AC:** only assigned role-authorized cases appear; stable risk ordering;
+terminal cases are visible but not actionable; no raw PII in MCP/logs; UI consumes
+the canonical queue contract rather than a parallel projection.
+**V:** role-leak/priority/terminal tests + MCP contract + authenticated UI E2E.
+
+### LZ-76 · AI-junior intake, evidence chase and client follow-up
+`pkg:agent`+`pkg:platform`+`pkg:web` · deps: LZ-70, LZ-74 · P0
+Create secure document requests, discover likely missing authoritative sources,
+detect duplicates, draft concise follow-ups and track responses. Escalate only
+facts that require taxpayer or professional judgment.
+**AC:** no request for facts already evidenced; follow-ups contain no unrelated
+case data; channel consent/expiry/revocation enforced; every contact is previewed,
+audited and retry-safe.
+**V:** synthetic channel adapter tests + wrong-recipient DLP + pilot transcripts.
+
+### LZ-77 · Maker-checker review, override and sign-off
+`pkg:platform`+`pkg:web`+`pkg:filing` · deps: LZ-74, LZ-80 · P0/blocking
+Preparers propose; a distinct qualified reviewer approves, edits or escalates.
+Record reasoned overrides and bind taxpayer approval to the immutable reviewed
+draft before any consequential action.
+**AC:** self-approval impossible; edit invalidates approval; override requires
+rule/evidence impact and reason code; submission requires current review hash and
+fresh taxpayer consent.
+**V:** state-machine/authz/adversarial tests + signed approval replay.
+
+### LZ-78 · Existing CA software interoperability layer
+`pkg:integrations`+`pkg:itr-json` · deps: LZ-65, LZ-74 · P1
+Import/export official ITR JSON and adapters for practitioner workflows so firms
+can retain their filing software. LazyTax remains the proof/reconciliation layer,
+not a forced rip-and-replace form utility.
+**AC:** canonical deterministic exports; round-trip detects loss/changes; adapter
+failures do not corrupt the case; supported systems and limitations versioned.
+**V:** golden round-trips + compatibility matrix + two-firm workflow test.
+
+### LZ-79 · Bring-your-own-CA and professional escalation flow
+`pkg:web`+`pkg:platform` · deps: LZ-50, LZ-74, LZ-80 · P1
+Allow taxpayers to invite an existing CA or consent to a professional escalation.
+Share a scoped review-ready case rather than an uncontrolled file dump; make
+access time-bound, revocable and visible.
+**AC:** explicit recipient/purpose/scope/expiry consent; recipient verification;
+instant revocation; no access to unrelated cases; complete access audit.
+**V:** invite/accept/revoke/expiry E2E + wrong-recipient and enumeration tests.
+
+### LZ-80 · Firm workspace, tenancy and staff controls
+`pkg:platform`+`pkg:db`+`pkg:web` · deps: LZ-48, LZ-74 · P0/blocking
+Add firm/client isolation, least-privilege staff roles, MFA, assignment, staff
+lifecycle, periodic access review and audited break glass.
+**AC:** complete cross-tenant matrix denies by default; departed staff lose
+sessions/keys immediately; privileged access is time-bound and reviewed; raw PII
+absent from admin/support surfaces.
+**V:** authz matrix + staff offboarding + break-glass and key-rotation drills.
+
+### LZ-81 · Practitioner pilot and workflow ROI proof
+`type:product`+`type:ops` · deps: LZ-75..80 · P0
+Pilot with 5–10 CA/tax firms on salary, investments and foreign-asset cases.
+Measure practitioner minutes per case, follow-up touches, review corrections,
+turnaround, adoption and trust; convert scrubbed failures into fixtures/tickets.
+**AC:** baseline and decision rule pre-registered; no tax content/session replay in
+analytics; every correction traced to workflow/root cause; named go/no-go for the
+next firm cohort.
+**V:** privacy-safe pilot report + interview synthesis + regression ledger.

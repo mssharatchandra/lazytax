@@ -32,3 +32,22 @@
 - Public distribution is sequenced as skills-only submission first, then an app-plus-skills submission after a production HTTPS MCP endpoint, verified publisher/domain, public legal/support pages, authentication, CSP, reviewer access and security gates exist.
 - LazyTax will not claim “all Indian tax laws.” The near-term right to win is more proof per supported personal-income-tax filing: source-linked claims, conflict-first reconciliation, deterministic rupee calculations, portable proof packs, user-chosen agent interfaces and privacy-minimized processing.
 - ClearTax breadth is treated as a benchmark, not immediate scope. Coverage expands through a versioned official-source rule registry, government-utility cross-checks, golden/property tests and named CA/legal approval before each capability is declared supported.
+
+## 2026-07-19 · Codex agent team · Practitioner distribution direction lock
+- LazyTax is now one shared tax-case product for two roles: a CA-style taxpayer
+  concierge and a practitioner AI-junior cockpit. The practitioner is the
+  trust/distribution wedge; LazyTax augments rather than replaces CAs and
+  interoperates with existing filing software.
+- `AGENTS.md` is the canonical operating contract. It locks the product thesis,
+  role/maker-checker/security invariants, truthful progress, execution order and
+  Definition of Done.
+- The live Linear project was renamed `LazyTax — AI Tax Caseworker for CAs +
+  Taxpayers`; LZ-60–81 were added as CUR-94–115. LZ-69/CUR-103 is Done;
+  LZ-74/CUR-108 and LZ-75/CUR-109 are In Progress. Broad legacy tickets remain
+  open until their full acceptance criteria pass.
+- The local product now has strict pseudonymous taxpayer/preparer/reviewer case
+  contracts, deterministic role-aware queue planning, an eighth read-only MCP
+  tool, a synthetic practitioner cockpit and maker-checker/role-leak evals.
+- The practitioner viewer is explicitly a synthetic demonstration. Durable
+  tenancy/authentication, encrypted real-file storage, consent transport, CA
+  verification, official ITR breadth and ERI filing remain production gates.

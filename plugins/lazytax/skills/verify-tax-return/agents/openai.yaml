@@ -1,4 +1,4 @@
 interface:
-  display_name: "Verify Tax Return"
-  short_description: "Evidence-first Indian tax return verification"
-  default_prompt: "Use $verify-tax-return to verify these synthetic tax documents and show every discrepancy."
+  display_name: "LazyTax Filing & Review"
+  short_description: "Taxpayer concierge and CA review copilot"
+  default_prompt: "Use $verify-tax-return to prepare this taxpayer case or review it as a CA using one evidence-linked Tax Proof Pack."

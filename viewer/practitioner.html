@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light" />
+    <title>LazyTax — Synthetic Practitioner Queue</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <a class="brand" href="./" aria-label="LazyTax evidence viewer home">
+        <span class="brand-mark" aria-hidden="true">L</span>
+        <span>LazyTax</span>
+      </a>
+      <nav class="role-nav" aria-label="Viewer role">
+        <a href="./">Taxpayer proof</a>
+        <a class="active" href="./practitioner.html" aria-current="page">Practitioner queue</a>
+      </nav>
+    </header>
+
+    <main>
+      <section class="practitioner-hero" aria-labelledby="queue-title">
+        <div>
+          <p class="eyebrow">Practitioner workspace · synthetic only</p>
+          <h1 id="queue-title">Review risk, not inboxes.</h1>
+          <p class="hero-copy">
+            A read-only multi-case projection for a chartered-accountant workflow. Every case is synthetic and every shared-artifact hash comes from the live local MCP demo run.
+          </p>
+        </div>
+        <article class="role-boundary">
+          <strong>Role boundary</strong>
+          <p>Case summaries and review controls only. Raw documents, self-approval, filing, and cross-organization access are denied.</p>
+          <button id="load-queue" class="primary-button" type="button">Load live practitioner queue</button>
+        </article>
+      </section>
+
+      <section aria-labelledby="queue-heading">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">Risk-prioritized worklist</p>
+            <h2 id="queue-heading">Cases awaiting action</h2>
+          </div>
+          <span id="queue-status" class="pill">Not loaded</span>
+        </div>
+        <div id="queue-summary" class="queue-summary" aria-label="Queue summary"></div>
+        <div id="case-queue" class="case-queue" aria-live="polite">
+          <article class="empty-state">
+            <h3>Generate the synthetic queue</h3>
+            <p>The viewer will run the canonical MCP workflow, then project three explicitly labelled case states for the practitioner demo.</p>
+          </article>
+        </div>
+      </section>
+
+      <article class="boundary-card">
+        <h3>Production boundary</h3>
+        <p>This slice demonstrates information architecture and deterministic prioritization. It does not implement identity, organization tenancy, CA credential verification, durable assignment, real taxpayer data, or filing.</p>
+      </article>
+    </main>
+
+    <footer>
+      <span>LazyTax practitioner viewer</span>
+      <span>Read-only · synthetic projection · local MCP-derived integrity</span>
+    </footer>
+
+    <script src="./practitioner.js"></script>
+  </body>
+</html>
