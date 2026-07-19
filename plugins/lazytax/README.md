@@ -1,6 +1,11 @@
 # LazyTax Codex plugin
 
-LazyTax is a Build Week MVP for private, evidence-first Indian tax verification. It packages a verification skill and a local MCP server entry point. It never files a return.
+LazyTax is a Build Week MVP for secure, CA-style Indian tax preparation. It
+packages a proactive filing-companion skill and a local deterministic MCP
+server. It consolidates authorized private documents, plans the next best
+filing action, and keeps working until only taxpayer decisions or approvals
+remain. The current local build guides filing but does not claim an automatic
+government submission.
 
 ## Current scope
 

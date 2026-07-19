@@ -2,6 +2,19 @@
 
 Use the exact capability names below. Codex hosts may add a server namespace prefix.
 
+## `lazytax_plan_filing_session`
+
+Input: privacy-safe workflow state only—opaque session reference, evidence-type
+inventory, income-category labels, workflow milestones, portal mode and approval
+state. Never include names, PAN, Aadhaar, account data, amounts, document text,
+credentials, OTPs, EVCs, private keys or seed phrases.
+
+Expected output: the single deterministic next-best action, owner, progress,
+authoritative-source status, open items and at most three questions. Perform the
+action before questioning the taxpayer whenever
+`can_agent_continue_without_user` is true. A flag that an item
+`blocks_complete_liability_only` never blocks safe partial progress.
+
 ## `lazytax_normalize_fixture_data`
 
 Input: the explicitly authorized synthetic fixture set or supported fixture payload.

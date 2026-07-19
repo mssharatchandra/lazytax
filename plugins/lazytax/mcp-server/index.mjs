@@ -21274,6 +21274,157 @@ var UsStockComputationResultSchema = external_exports.object({
   disclaimer: external_exports.literal(PRIVATE_REVIEW_DISCLAIMER)
 }).strict();
 
+// packages/core/dist/filing-session.js
+var OpaqueSessionRefSchema = external_exports.string().regex(/^[A-Za-z0-9_-]{1,120}$/);
+var FilingEvidenceKindSchema = external_exports.enum([
+  "form16",
+  "ais",
+  "tis",
+  "form26as",
+  "itd_prefill",
+  "bank_interest",
+  "domestic_broker",
+  "foreign_broker",
+  "crypto_exchange_or_wallet",
+  "house_property",
+  "deduction_proof",
+  "other"
+]);
+var FilingIncomeCategorySchema = external_exports.enum([
+  "salary",
+  "interest",
+  "dividends",
+  "domestic_securities",
+  "foreign_assets_or_income",
+  "crypto",
+  "house_property",
+  "business_or_professional",
+  "deductions",
+  "other"
+]);
+var FilingSessionInputSchema = external_exports.object({
+  session_ref: OpaqueSessionRefSchema,
+  assessment_year: external_exports.literal("2026-27"),
+  intent: external_exports.enum(["prepare_only", "file_with_me"]),
+  portal_mode: external_exports.enum(["disconnected", "guided_local_browser", "eri"]),
+  portal_authenticated_by_user: external_exports.boolean(),
+  age_band: external_exports.enum(["unknown", "under_60", "age_60_to_79", "age_80_plus"]),
+  residential_status: external_exports.enum([
+    "unknown",
+    "resident_unspecified",
+    "resident_and_ordinarily_resident",
+    "resident_but_not_ordinarily_resident",
+    "non_resident"
+  ]),
+  authorized_evidence: external_exports.array(FilingEvidenceKindSchema).max(50),
+  present_income_categories: external_exports.array(FilingIncomeCategorySchema).max(20),
+  evidence_gaps: external_exports.array(FilingIncomeCategorySchema).max(20),
+  documents_extracted: external_exports.boolean(),
+  income_categories_classified: external_exports.boolean(),
+  residual_user_check_completed: external_exports.boolean(),
+  reconciliation_completed: external_exports.boolean(),
+  unresolved_material_conflicts: external_exports.number().int().min(0).max(1e4),
+  calculation_completed: external_exports.boolean(),
+  return_draft_prepared: external_exports.boolean(),
+  review_confirmed: external_exports.boolean(),
+  submission_confirmed: external_exports.boolean(),
+  submission_completed: external_exports.boolean(),
+  e_verification_completed: external_exports.boolean()
+}).strict().superRefine((value, context) => {
+  const present = new Set(value.present_income_categories);
+  for (const gap of value.evidence_gaps) {
+    if (!present.has(gap)) {
+      context.addIssue({
+        code: external_exports.ZodIssueCode.custom,
+        path: ["evidence_gaps"],
+        message: `Evidence gap ${gap} must also appear in present_income_categories.`
+      });
+    }
+  }
+  if (value.portal_mode === "disconnected" && value.portal_authenticated_by_user) {
+    context.addIssue({
+      code: external_exports.ZodIssueCode.custom,
+      path: ["portal_authenticated_by_user"],
+      message: "A disconnected portal cannot have an authenticated user session."
+    });
+  }
+  if (value.submission_completed && !value.submission_confirmed) {
+    context.addIssue({
+      code: external_exports.ZodIssueCode.custom,
+      path: ["submission_completed"],
+      message: "Submission cannot be complete without explicit submission confirmation."
+    });
+  }
+  if (value.e_verification_completed && !value.submission_completed) {
+    context.addIssue({
+      code: external_exports.ZodIssueCode.custom,
+      path: ["e_verification_completed"],
+      message: "E-verification cannot be complete before submission."
+    });
+  }
+});
+var FilingActionSchema = external_exports.object({
+  action_id: external_exports.enum([
+    "extract_documents",
+    "connect_portal",
+    "authenticate_portal",
+    "collect_authoritative_sources",
+    "classify_income",
+    "residual_income_check",
+    "collect_missing_evidence",
+    "reconcile_sources",
+    "resolve_material_conflicts",
+    "confirm_profile",
+    "calculate_return",
+    "prepare_return_draft",
+    "review_return",
+    "confirm_submission",
+    "submit_return",
+    "e_verify_return",
+    "complete"
+  ]),
+  owner: external_exports.enum(["agent", "user", "shared"]),
+  title: external_exports.string().min(1).max(180),
+  reason: external_exports.string().min(1).max(500),
+  requires_user_input: external_exports.boolean(),
+  requires_consequential_action_approval: external_exports.boolean(),
+  blocks_complete_liability_only: external_exports.boolean()
+}).strict();
+var FilingSessionPlanSchema = external_exports.object({
+  schema_version: external_exports.literal("lazytax.filing-session.v1"),
+  session_ref: external_exports.string().regex(/^session_[a-f0-9]{16}$/),
+  assessment_year: external_exports.literal("2026-27"),
+  phase: external_exports.enum([
+    "intake",
+    "source_collection",
+    "discovery",
+    "reconciliation",
+    "calculation",
+    "drafting",
+    "review",
+    "submission",
+    "e_verification",
+    "complete"
+  ]),
+  progress_percent: external_exports.number().int().min(0).max(100),
+  next_best_action: FilingActionSchema,
+  can_agent_continue_without_user: external_exports.boolean(),
+  partial_progress_allowed: external_exports.literal(true),
+  authoritative_source_status: external_exports.object({
+    ais_or_tis_present: external_exports.boolean(),
+    form26as_present: external_exports.boolean(),
+    itd_prefill_present: external_exports.boolean(),
+    collection_complete: external_exports.boolean()
+  }).strict(),
+  open_items: external_exports.array(external_exports.string().min(1).max(300)).max(20),
+  questions_for_user: external_exports.array(external_exports.string().min(1).max(500)).max(3),
+  security_promises: external_exports.tuple([
+    external_exports.literal("Credentials, OTPs, EVCs, private keys and seed phrases never belong in chat or tool inputs."),
+    external_exports.literal("The taxpayer authenticates directly in the official portal or approved ERI consent flow."),
+    external_exports.literal("Submission, payment and e-verification always require a contextual user approval.")
+  ])
+}).strict();
+
 // packages/core/dist/index.js
 var ASSESSMENT_YEAR2 = "2026-27";
 var DISCLAIMER = "Synthetic Build Week demonstration only. LazyTax does not file a return and is not tax, legal, or financial advice. Verify all figures against official records and a qualified professional before acting.";
@@ -21529,7 +21680,7 @@ var TaxProofPackSchema = TaxProofPackBaseSchema.extend({
 }).strict();
 
 // packages/engine/dist/index.js
-import { createHash, createHmac as createHmac2, randomBytes as randomBytes2 } from "node:crypto";
+import { createHash, createHmac as createHmac3, randomBytes as randomBytes3 } from "node:crypto";
 
 // packages/engine/dist/us-stocks.js
 import { createHmac, randomBytes } from "node:crypto";
@@ -21813,6 +21964,187 @@ function computeUsStockInvestments(inputValue) {
   });
 }
 
+// packages/engine/dist/filing-session.js
+import { createHmac as createHmac2, randomBytes as randomBytes2 } from "node:crypto";
+var SESSION_KEY = randomBytes2(32);
+function sessionToken(value) {
+  return `session_${createHmac2("sha256", SESSION_KEY).update(value).digest("hex").slice(0, 16)}`;
+}
+function action(actionId, owner, title, reason, options = {}) {
+  return {
+    action_id: actionId,
+    owner,
+    title,
+    reason,
+    requires_user_input: options.requiresUserInput ?? owner !== "agent",
+    requires_consequential_action_approval: options.requiresApproval ?? false,
+    blocks_complete_liability_only: options.blocksCompleteLiabilityOnly ?? false
+  };
+}
+function missingAuthoritativeSources(input) {
+  const present = new Set(input.authorized_evidence);
+  const missing = [];
+  if (!present.has("ais") && !present.has("tis"))
+    missing.push("AIS/TIS");
+  if (!present.has("form26as"))
+    missing.push("Form 26AS");
+  if (!present.has("itd_prefill"))
+    missing.push("Income Tax prefill");
+  return missing;
+}
+function evidenceGapLabels(categories) {
+  const labels = {
+    salary: "salary evidence",
+    interest: "bank interest evidence",
+    dividends: "dividend evidence",
+    domestic_securities: "domestic broker tax report",
+    foreign_assets_or_income: "foreign broker/account evidence",
+    crypto: "exchange and self-custody wallet history",
+    house_property: "rent/home-loan/property evidence",
+    business_or_professional: "business or freelance books/evidence",
+    deductions: "deduction proofs",
+    other: "other income evidence"
+  };
+  return [...new Set(categories)].map((category) => labels[category]);
+}
+function planFilingSession(inputValue) {
+  const input = FilingSessionInputSchema.parse(inputValue);
+  const evidence = new Set(input.authorized_evidence);
+  const missingSources = missingAuthoritativeSources(input);
+  const authoritativeStatus = {
+    ais_or_tis_present: evidence.has("ais") || evidence.has("tis"),
+    form26as_present: evidence.has("form26as"),
+    itd_prefill_present: evidence.has("itd_prefill"),
+    collection_complete: missingSources.length === 0
+  };
+  const openItems = [];
+  const questions = [];
+  let phase = "intake";
+  let nextAction;
+  if (!input.documents_extracted && input.authorized_evidence.length > 0) {
+    nextAction = action("extract_documents", "agent", "Extract and consolidate the authorized documents", "Useful work can continue immediately without asking the taxpayer to retype document facts.");
+    openItems.push("Document extraction and duplicate detection");
+  } else if (missingSources.length > 0) {
+    phase = "source_collection";
+    openItems.push(`Collect ${missingSources.join(", ")}`);
+    if (input.portal_mode === "disconnected") {
+      nextAction = action("connect_portal", "shared", "Connect the official Income Tax source flow", "AIS/TIS, Form 26AS and prefill should be collected before asking the taxpayer to remember every possible income item.", { requiresUserInput: true, blocksCompleteLiabilityOnly: true });
+      questions.push("Please open the official Income Tax portal in the guided local browser and sign in yourself; do not paste your password or OTP into chat.");
+    } else if (!input.portal_authenticated_by_user) {
+      nextAction = action("authenticate_portal", "user", "Sign in directly on the official portal", "The taxpayer must authenticate at the official origin; LazyTax must not receive or retain credentials or OTPs.", { requiresUserInput: true, blocksCompleteLiabilityOnly: true });
+      questions.push("Sign in in the portal window and tell me when the dashboard is visible; keep the password and OTP inside that window.");
+    } else {
+      nextAction = action("collect_authoritative_sources", "agent", `Collect ${missingSources.join(", ")}`, "The authenticated, user-authorized source can supply likely income and credit records without manual retyping.", { blocksCompleteLiabilityOnly: true });
+    }
+  } else if (!input.income_categories_classified) {
+    phase = "discovery";
+    nextAction = action("classify_income", "agent", "Classify income and filing schedules from collected evidence", "The agent should exhaust authoritative evidence before asking residual questions.");
+    openItems.push("Income-head classification from collected sources");
+  } else if (!input.residual_user_check_completed) {
+    phase = "discovery";
+    nextAction = action("residual_income_check", "user", "Confirm only income that authoritative sources may miss", "AIS and prefill may be incomplete for private wallets, overseas accounts, cash/property activity, freelance work and privately paid deductions.", { requiresUserInput: true, blocksCompleteLiabilityOnly: true });
+    questions.push("Outside the collected records, did you have any private crypto wallet or exchange, foreign account/RSU, freelance or business income, house property or rent, or deduction proof? Reply \u2018none\u2019 or list only the categories that apply.");
+    openItems.push("Residual income and deduction confirmation");
+  } else if (input.evidence_gaps.length > 0) {
+    phase = "source_collection";
+    const labels = evidenceGapLabels(input.evidence_gaps);
+    nextAction = action("collect_missing_evidence", "shared", `Collect ${labels.join(", ")}`, "These categories are known to exist but still lack enough evidence for a complete calculation.", { requiresUserInput: true, blocksCompleteLiabilityOnly: true });
+    questions.push(`Please connect or attach: ${labels.join(", ")}. I will extract the details; do not retype every transaction.`);
+    openItems.push(...labels.map((label) => `Missing ${label}`));
+  } else if (!input.reconciliation_completed) {
+    phase = "reconciliation";
+    nextAction = action("reconcile_sources", "agent", "Reconcile all collected sources", "Duplicate documents, double-counted deductions and conflicting source totals can be resolved or isolated before calculation.");
+    openItems.push("Source reconciliation");
+  } else if (input.unresolved_material_conflicts > 0) {
+    phase = "reconciliation";
+    nextAction = action("resolve_material_conflicts", "shared", `Resolve ${input.unresolved_material_conflicts} material conflict${input.unresolved_material_conflicts === 1 ? "" : "s"}`, "Only material source conflicts that cannot be resolved from stronger evidence need taxpayer judgment.", { requiresUserInput: true, blocksCompleteLiabilityOnly: true });
+    questions.push("Review the grouped material conflicts and confirm the correct source or amount for each highlighted item.");
+    openItems.push(`${input.unresolved_material_conflicts} material reconciliation conflict(s)`);
+  } else if (input.age_band === "unknown" || input.residential_status === "unknown" || input.residential_status === "resident_unspecified") {
+    phase = "calculation";
+    nextAction = action("confirm_profile", "user", "Confirm the remaining tax-profile facts", "Age band and precise residential status can change tax rules and foreign-income reporting.", { requiresUserInput: true, blocksCompleteLiabilityOnly: true });
+    if (input.age_band === "unknown")
+      questions.push("What was your age on 31 March 2026?");
+    if (input.residential_status === "unknown" || input.residential_status === "resident_unspecified") {
+      questions.push("Were you Resident and Ordinarily Resident, Resident but Not Ordinarily Resident, or Non-Resident for FY 2025-26?");
+    }
+    openItems.push("Taxpayer age/residential-status confirmation");
+  } else if (!input.calculation_completed) {
+    phase = "calculation";
+    nextAction = action("calculate_return", "agent", "Calculate the supported return and compare regimes", "The evidence and material profile facts are ready for deterministic calculation.");
+    openItems.push("Deterministic tax calculation");
+  } else if (!input.return_draft_prepared) {
+    phase = "drafting";
+    nextAction = action("prepare_return_draft", "agent", "Prepare the ITR draft and proof-linked review", "A draft should be assembled before asking the taxpayer for filing approval.");
+    openItems.push("ITR draft and schedule review");
+  } else if (!input.review_confirmed) {
+    phase = "review";
+    nextAction = action("review_return", "shared", "Review the completed return draft", "The taxpayer should see income, deductions, credits, regime, balance/refund and open caveats together before submission.", { requiresUserInput: true });
+    questions.push("Please review the draft summary and flag anything that looks unfamiliar; I will explain every number from its source.");
+    openItems.push("Taxpayer review of the ITR draft");
+  } else if (input.intent === "prepare_only") {
+    phase = "complete";
+    nextAction = action("complete", "agent", "Preparation complete", "The requested reviewed draft is complete; no government submission was requested.");
+  } else if (!input.submission_confirmed) {
+    phase = "submission";
+    nextAction = action("confirm_submission", "user", "Approve submission of this exact return draft", "Submission is consequential and requires a distinct approval tied to the reviewed draft.", { requiresUserInput: true, requiresApproval: true });
+    questions.push("Do you approve submitting this exact reviewed draft to the Income Tax Department?");
+    openItems.push("Explicit submission approval");
+  } else if (input.portal_mode === "disconnected") {
+    phase = "submission";
+    nextAction = action("connect_portal", "shared", "Connect an authorized filing rail", "The draft is approved, but LazyTax cannot submit without a supported user-supervised portal or registered ERI connection.", { requiresUserInput: true, requiresApproval: true });
+    questions.push("Open the official Income Tax portal in the guided local browser and sign in yourself; keep the password and OTP out of chat.");
+    openItems.push("Authorized filing-rail connection");
+  } else if (!input.portal_authenticated_by_user) {
+    phase = "submission";
+    nextAction = action("authenticate_portal", "user", "Authenticate directly with the filing rail", "The taxpayer must authenticate or complete the official ERI consent flow before the approved draft can be submitted.", { requiresUserInput: true, requiresApproval: true });
+    questions.push("Authenticate in the official portal or ERI consent window and tell me when the filing session is ready; do not paste credentials or OTPs into chat.");
+    openItems.push("Taxpayer authentication or ERI consent");
+  } else if (!input.submission_completed) {
+    phase = "submission";
+    nextAction = action("submit_return", "agent", "Submit the approved return through the authorized filing rail", "The taxpayer approved this exact draft; the action must still use a supported guided-browser or ERI rail.", { requiresApproval: true });
+    openItems.push("Government submission");
+  } else if (!input.e_verification_completed) {
+    phase = "e_verification";
+    nextAction = action("e_verify_return", "user", "Complete e-verification on the official portal", "The taxpayer must control the OTP, EVC, DSC or other official verification method.", { requiresUserInput: true, requiresApproval: true });
+    questions.push("Complete e-verification in the official portal window; keep the OTP/EVC out of chat, then confirm when the acknowledgement appears.");
+    openItems.push("Taxpayer e-verification and acknowledgement");
+  } else {
+    phase = "complete";
+    nextAction = action("complete", "agent", "Filing journey complete", "Submission and taxpayer-controlled e-verification are recorded as complete.");
+  }
+  const phaseProgress = {
+    intake: 10,
+    source_collection: 25,
+    discovery: 40,
+    reconciliation: 55,
+    calculation: 70,
+    drafting: 80,
+    review: 88,
+    submission: 94,
+    e_verification: 98,
+    complete: 100
+  };
+  return FilingSessionPlanSchema.parse({
+    schema_version: "lazytax.filing-session.v1",
+    session_ref: sessionToken(input.session_ref),
+    assessment_year: "2026-27",
+    phase,
+    progress_percent: phaseProgress[phase],
+    next_best_action: nextAction,
+    can_agent_continue_without_user: !nextAction.requires_user_input,
+    partial_progress_allowed: true,
+    authoritative_source_status: authoritativeStatus,
+    open_items: openItems,
+    questions_for_user: questions,
+    security_promises: [
+      "Credentials, OTPs, EVCs, private keys and seed phrases never belong in chat or tool inputs.",
+      "The taxpayer authenticates directly in the official portal or approved ERI consent flow.",
+      "Submission, payment and e-verification always require a contextual user approval."
+    ]
+  });
+}
+
 // packages/engine/dist/index.js
 var OFFICIAL_RULE_SOURCES = [
   "https://www.incometax.gov.in/iec/foportal/help/individual/return-applicable-1",
@@ -21825,7 +22157,7 @@ var FOREIGN_TAX_CREDIT_SOURCES = [
   "https://wmstatic-prd.incometaxindia.gov.in/web/guest/w/schedule_fsi",
   "https://wmstatic-prd.incometaxindia.gov.in/documents/20117/42998/Rule-128_2026-01-13_11-37-01_1c629b_en.pdf/145a3343-3b83-7223-7064-8fd9194f161c?download=true&t=1775731788761&version=6.0"
 ];
-var LOCAL_PRIVATE_SESSION_KEY = randomBytes2(32);
+var LOCAL_PRIVATE_SESSION_KEY = randomBytes3(32);
 function disclaimerFor(dataMode) {
   return dataMode === "local_private" ? PRIVATE_REVIEW_DISCLAIMER2 : DISCLAIMER;
 }
@@ -21908,7 +22240,7 @@ function rawDocumentId(document) {
   return isSyntheticFixture(document) ? document.document_id : document.id;
 }
 function privateToken2(prefix, value) {
-  const digest = createHmac2("sha256", LOCAL_PRIVATE_SESSION_KEY).update(value).digest("hex").slice(0, 16);
+  const digest = createHmac3("sha256", LOCAL_PRIVATE_SESSION_KEY).update(value).digest("hex").slice(0, 16);
   return `${prefix}-${digest}`.replace("doc-", "doc_").replace("ev-", "ev_").replace("line-", "line_");
 }
 function safeInputIdentifier(dataMode, prefix, raw) {
@@ -22067,7 +22399,7 @@ function normalizeFixtureData(documentsInput) {
   if (!rawTaxpayerRef)
     throw new Error("Unable to establish one taxpayer reference.");
   const sourceMaterial = canonicalize2(documents);
-  const sourceSetHash = dataMode === "local_private" ? createHmac2("sha256", LOCAL_PRIVATE_SESSION_KEY).update(sourceMaterial).digest("hex") : createHash("sha256").update(sourceMaterial).digest("hex");
+  const sourceSetHash = dataMode === "local_private" ? createHmac3("sha256", LOCAL_PRIVATE_SESSION_KEY).update(sourceMaterial).digest("hex") : createHash("sha256").update(sourceMaterial).digest("hex");
   if (dataMode === "local_private") {
     return NormalizedDatasetSchema.parse({
       data_mode: dataMode,
@@ -22598,6 +22930,12 @@ ${boundary}`
     structuredContent: output
   };
 }
+function workflowResult(output, summary) {
+  return {
+    content: [{ type: "text", text: summary }],
+    structuredContent: output
+  };
+}
 function actionableError(error2, nextStep) {
   const detail = error2 instanceof UnsupportedTaxProfileError ? error2.message : error2 instanceof Error ? error2.message : "An unexpected validation error occurred.";
   return {
@@ -22610,6 +22948,30 @@ function createLazyTaxServer() {
     name: "lazytax-mcp-server",
     version: "0.1.0"
   });
+  server.registerTool(
+    "lazytax_plan_filing_session",
+    {
+      title: "Plan the Next Tax Filing Action",
+      description: "Turn a privacy-safe filing-session state into one deterministic next-best action. The planner prioritizes extracting authorized documents and collecting AIS/TIS, Form 26AS and Income Tax prefill before asking residual income questions; missing facts block only the affected complete-liability claim. It never accepts credentials, OTPs, PAN, Aadhaar, names, account numbers or document content. Submission and e-verification remain explicit taxpayer-controlled actions.",
+      inputSchema: FilingSessionInputSchema,
+      outputSchema: FilingSessionPlanSchema,
+      annotations: READ_ONLY_ANNOTATIONS
+    },
+    async (input) => {
+      try {
+        const output = planFilingSession(input);
+        return workflowResult(
+          output,
+          `${output.progress_percent}% complete. Next: ${output.next_best_action.title}. ${output.next_best_action.reason}`
+        );
+      } catch (error2) {
+        return actionableError(
+          error2,
+          "Pass only privacy-safe workflow state and opaque references; do not include taxpayer identifiers, document contents, credentials or OTPs."
+        );
+      }
+    }
+  );
   server.registerTool(
     "lazytax_normalize_fixture_data",
     {

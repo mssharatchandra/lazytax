@@ -1,5 +1,14 @@
 # LazyTax — Master Plan (Build Week Scope Lock v2.0)
 
+> **CA-babysitter pivot — effective 19 Jul 2026.** The product outcome is now a
+> secure filing companion, not a verification report. The deterministic proof
+> kernel remains the trust foundation, but the agent must extract and collect
+> evidence proactively, calculate supported portions immediately, maintain one
+> open-items checklist, guide the government-portal journey and reserve pauses
+> for facts only the taxpayer knows or consequential approvals. The architecture,
+> compliance position and trust claims are locked in
+> [`docs/CA_BABYSITTER_PIVOT.md`](docs/CA_BABYSITTER_PIVOT.md).
+
 > **Build Week override — effective 19 Jul 2026.** This section supersedes the
 > v1 execution order below until the OpenAI Build Week submission is complete.
 > The v1 standalone-product plan is preserved as the post-hackathon roadmap.
@@ -25,6 +34,9 @@ Four source-of-truth documents now govern this path:
   skills-only and public MCP submission gates for the OpenAI Plugins Directory.
 - [`docs/TAX_COVERAGE_STRATEGY.md`](docs/TAX_COVERAGE_STRATEGY.md) — ClearTax
   benchmark, right-to-win thesis, rules supply chain, and sequenced tax coverage.
+- [`docs/CA_BABYSITTER_PIVOT.md`](docs/CA_BABYSITTER_PIVOT.md) — proactive
+  filing experience, secure real-data architecture, portal rails and compliance
+  gates.
 
 The Build Week local plugin remains zero-telemetry and local-first. No PostHog
 SDK is added until consent, privacy notice, vendor/region approval, allowlisted
@@ -34,11 +46,12 @@ gateway, deletion, and payload tests exist. The target contract lives in
 ## Build Week outcome
 
 Ship **LazyTax for Codex**, a real installable Codex/ChatGPT plugin that turns a
-user's existing agent surface into an evidence-backed Indian tax verification
-workflow. The submission must demonstrate that GPT-5.6 interprets and explains
-evidence while typed local tools reconcile sources, compute deterministically,
-and generate a Tax Proof Pack. It prepares and verifies; it does not submit a
-return or claim professional tax advice.
+user's existing agent surface into a proactive, evidence-backed Indian tax
+filing companion. The submission must demonstrate that GPT-5.6 organizes the
+journey and explains evidence while typed local tools select the next action,
+reconcile sources, compute deterministically, and generate a Tax Proof Pack.
+The Build Week build guides rather than silently submits; production submission
+is gated on a secure browser rail or official ERI integration.
 
 **Winning line:** *Give Codex your tax documents. Get back a return that proves
 every number.*

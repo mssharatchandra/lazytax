@@ -5,6 +5,8 @@ import { fileURLToPath } from "node:url";
 import { z } from "zod";
 import {
   DISCLAIMER,
+  FilingSessionInputSchema,
+  FilingSessionPlanSchema,
   FixtureDocumentSchema,
   IncomeCategorySchema,
   LocalPrivateFixtureDocumentSchema,
@@ -23,6 +25,7 @@ import {
   computeUsStockInvestments,
   generateTaxProofPack,
   normalizeFixtureData,
+  planFilingSession,
   reconcileEvidence,
   taxInputsFromReconciliation
 } from "@lazytax/engine";
@@ -111,6 +114,16 @@ function textResult<T extends Record<string, unknown>>(
   };
 }
 
+function workflowResult<T extends Record<string, unknown>>(
+  output: T,
+  summary: string
+): { content: [{ type: "text"; text: string }]; structuredContent: T } {
+  return {
+    content: [{ type: "text", text: summary }],
+    structuredContent: output
+  };
+}
+
 function actionableError(error: unknown, nextStep: string): {
   isError: true;
   content: [{ type: "text"; text: string }];
@@ -132,6 +145,32 @@ export function createLazyTaxServer(): McpServer {
     name: "lazytax-mcp-server",
     version: "0.1.0"
   });
+
+  server.registerTool(
+    "lazytax_plan_filing_session",
+    {
+      title: "Plan the Next Tax Filing Action",
+      description:
+        "Turn a privacy-safe filing-session state into one deterministic next-best action. The planner prioritizes extracting authorized documents and collecting AIS/TIS, Form 26AS and Income Tax prefill before asking residual income questions; missing facts block only the affected complete-liability claim. It never accepts credentials, OTPs, PAN, Aadhaar, names, account numbers or document content. Submission and e-verification remain explicit taxpayer-controlled actions.",
+      inputSchema: FilingSessionInputSchema,
+      outputSchema: FilingSessionPlanSchema,
+      annotations: READ_ONLY_ANNOTATIONS
+    },
+    async (input) => {
+      try {
+        const output = planFilingSession(input);
+        return workflowResult(
+          output,
+          `${output.progress_percent}% complete. Next: ${output.next_best_action.title}. ${output.next_best_action.reason}`
+        );
+      } catch (error) {
+        return actionableError(
+          error,
+          "Pass only privacy-safe workflow state and opaque references; do not include taxpayer identifiers, document contents, credentials or OTPs."
+        );
+      }
+    }
+  );
 
   server.registerTool(
     "lazytax_normalize_fixture_data",

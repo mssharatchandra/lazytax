@@ -22,7 +22,7 @@ npm run check
 npm run install:plugin
 ```
 
-`npm run check` includes an isolated-copy smoke test of the complete six-tool
+`npm run check` includes an isolated-copy smoke test of the complete seven-tool
 workflow, so it verifies the same self-contained package shape Codex places in
 its install cache. `npm run install:plugin` registers this repository as the
 `personal` marketplace when needed and installs or refreshes
@@ -89,7 +89,19 @@ cross-origin generation, and makes no external network calls.
 
 ## MCP tool contract
 
-All six tools are local, read-only, non-destructive, side-effect-free, and closed-world. Calculation results are stable for the same inputs; proof-pack `generated_at` and its dependent integrity hash vary by generation. The tools never access government portals or external services. The canonical three-minute judge path remains synthetic; the additional US-stock tool is exercised by automated plugin smoke tests.
+All seven tools are local, read-only, non-destructive, side-effect-free, and
+closed-world. Calculation results are stable for the same inputs; proof-pack
+`generated_at` and its dependent integrity hash vary by generation. The tools
+never access government portals or external services. The canonical three-
+minute judge path remains synthetic; the CA-style next-action planner and US-
+stock tool are exercised by automated plugin smoke tests.
+
+### `lazytax_plan_filing_session`
+
+Purpose: turn privacy-safe workflow state into one next-best filing action. It
+extracts authorized documents and prioritizes AIS/TIS, Form 26AS and prefill
+collection before asking a residual income question. It never accepts taxpayer
+identifiers, amounts, document text, credentials or OTPs.
 
 ### `lazytax_normalize_fixture_data`
 

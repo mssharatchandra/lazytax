@@ -23,9 +23,11 @@ All conditions must hold:
 
 Treat the engine's machine-readable result as authoritative if it is narrower than this document.
 
-## Unsupported in the MVP
+## Partial-support boundaries in the MVP
 
-Stop calculation when the case includes any unsupported item, including:
+An item below stops only its affected deterministic calculation or filing
+claim. Continue inventory, authoritative-source collection, reconciliation and
+every separable supported calculation:
 
 - Non-resident or resident-but-not-ordinarily-resident status.
 - Business or professional income, partnership income, presumptive income, or director/unlisted-share complexity.
@@ -34,27 +36,46 @@ Stop calculation when the case includes any unsupported item, including:
 - RSUs, ESPPs, employee stock options, splits, mergers, spin-offs, return of capital, gifts, inheritance, multiple currencies, treaty-specific capital-gains relief, foreign capital-loss carry-forward, and overseas employment remain outside the deterministic engine. Their presence must produce a partial-support result and an exact list of missing calculations; it must not prevent evidence inventory.
 - Agricultural-income interactions, trusts, estates, clubbing/minor income, carry-forward losses, or other cases the engine does not declare supported.
 - Amended, revised, belated, defective, notice-response, assessment, appeal, audit, or litigation workflows.
-- Direct filing, portal automation, credential handling, OTP handling, signatures, payments, refunds, or representation before an authority.
+- Unsupervised filing, credential or OTP collection, signatures, payments,
+  refunds, or representation before an authority. User-supervised navigation
+  and collection on the official portal is allowed when an approved browser
+  capability is available. Submission and e-verification require distinct
+  taxpayer approval and a supported browser or registered ERI rail.
 
-Do not improvise a partial numeric answer for an unsupported case. Return the supported evidence findings separately and identify what requires a qualified tax professional.
+Do not improvise a numeric answer for an unsupported component. Return supported
+figures separately, quantify the open item's potential effect when a
+deterministic bound exists, and prepare a CA-ready evidence packet for what
+requires specialist review.
 
 ## Data boundary
 
 The public judge fixture remains synthetic-only. Private local review may accept real taxpayer documents when the user explicitly authorizes the named files for the requested task.
 
-Authorize files by explicit path or attachment. Do not recursively inspect user directories. Do not upload to third-party tax services, persist raw extracted text, or echo identifiers. Prefer record IDs, masked labels, and source locators. Never request portal credentials or OTPs. A protected-document password may be used only through a local secret-entry mechanism and must not be repeated in conversation or artifacts.
+Authorize files by explicit path or attachment. Do not recursively inspect user
+directories. Do not upload to third-party tax services, persist raw extracted
+text, or echo identifiers. Prefer record IDs, masked labels, and source
+locators. Never request portal credentials or OTPs in chat or tool inputs.
+Authentication occurs directly at the official origin or through an approved
+ERI consent flow. A protected-document password may be used only through a
+local secret-entry mechanism and must not be repeated in conversation or
+artifacts.
 
 ## Human approval gates
 
 Require affirmative confirmation at these points:
 
-1. Each material discrepancy resolution accurately reflects the user's selected source or correction.
+1. A material discrepancy truly requiring taxpayer judgment.
 2. The final evidence and calculation summary may be used to generate a Tax Proof Pack.
+3. Submission of the exact reviewed return draft.
+4. Payment, profile change, e-verification, deletion or another consequential action.
 
 Silence, document presence, or a prior broad request is not confirmation.
 
 ## Required disclaimer
 
-State prominently:
+State once when material:
 
-> LazyTax provides evidence-backed tax preparation for review. It does not provide tax or legal advice and does not submit anything to a tax authority.
+> LazyTax is tax-preparation software, not a chartered accountant or law firm.
+> It submits only through a supported filing rail after the taxpayer approves
+> the exact reviewed return; credentials and verification secrets remain with
+> the taxpayer.

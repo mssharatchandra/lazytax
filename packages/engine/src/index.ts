@@ -30,6 +30,7 @@ import {
 import { US_STOCK_RULE_SOURCES } from "./us-stocks.js";
 
 export * from "./us-stocks.js";
+export * from "./filing-session.js";
 
 export const OFFICIAL_RULE_SOURCES = [
   "https://www.incometax.gov.in/iec/foportal/help/individual/return-applicable-1",

@@ -4,7 +4,7 @@ import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 import { createLazyTaxServer } from "../src/server.js";
 
-test("server exposes six focused tools and completes the bundled proof-pack workflow", async () => {
+test("server exposes seven focused tools and completes the bundled proof-pack workflow", async () => {
   const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
   const server = createLazyTaxServer();
   const client = new Client({ name: "lazytax-test-client", version: "0.1.0" });
@@ -19,6 +19,7 @@ test("server exposes six focused tools and completes the bundled proof-pack work
         "lazytax_generate_tax_proof_pack",
         "lazytax_normalize_fixture_data",
         "lazytax_normalize_private_tax_facts",
+        "lazytax_plan_filing_session",
         "lazytax_reconcile_evidence"
       ]
     );
@@ -31,6 +32,39 @@ test("server exposes six focused tools and completes the bundled proof-pack work
       );
       assert.ok(tool.outputSchema);
     }
+
+    const filingPlan = await client.callTool({
+      name: "lazytax_plan_filing_session",
+      arguments: {
+        session_ref: "mcp-filing-test",
+        assessment_year: "2026-27",
+        intent: "file_with_me",
+        portal_mode: "disconnected",
+        portal_authenticated_by_user: false,
+        age_band: "under_60",
+        residential_status: "resident_unspecified",
+        authorized_evidence: ["form16"],
+        present_income_categories: ["salary"],
+        evidence_gaps: [],
+        documents_extracted: false,
+        income_categories_classified: false,
+        residual_user_check_completed: false,
+        reconciliation_completed: false,
+        unresolved_material_conflicts: 0,
+        calculation_completed: false,
+        return_draft_prepared: false,
+        review_confirmed: false,
+        submission_confirmed: false,
+        submission_completed: false,
+        e_verification_completed: false
+      }
+    });
+    assert.equal(filingPlan.isError, undefined);
+    assert.equal(
+      (filingPlan.structuredContent as { next_best_action?: { action_id?: string } })
+        .next_best_action?.action_id,
+      "extract_documents"
+    );
 
     const normalized = await client.callTool({
       name: "lazytax_normalize_fixture_data",

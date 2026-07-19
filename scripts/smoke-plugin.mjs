@@ -11,6 +11,7 @@ const expectedTools = [
   "lazytax_generate_tax_proof_pack",
   "lazytax_normalize_fixture_data",
   "lazytax_normalize_private_tax_facts",
+  "lazytax_plan_filing_session",
   "lazytax_reconcile_evidence"
 ];
 
@@ -30,7 +31,8 @@ async function callStructured(client, name, arguments_) {
   const result = await client.callTool({
     name,
     arguments:
-      name === "lazytax_compute_us_stock_investments"
+      name === "lazytax_compute_us_stock_investments" ||
+      name === "lazytax_plan_filing_session"
         ? arguments_
         : { ...arguments_, response_format: "json" }
   });
@@ -55,6 +57,32 @@ async function runHappyPath(pluginRoot, label) {
       tools.tools.map((tool) => tool.name).sort(),
       expectedTools
     );
+
+    const filingPlan = await callStructured(client, "lazytax_plan_filing_session", {
+      session_ref: "smoke-filing-session",
+      assessment_year: "2026-27",
+      intent: "file_with_me",
+      portal_mode: "disconnected",
+      portal_authenticated_by_user: false,
+      age_band: "under_60",
+      residential_status: "resident_unspecified",
+      authorized_evidence: ["form16"],
+      present_income_categories: ["salary"],
+      evidence_gaps: [],
+      documents_extracted: false,
+      income_categories_classified: false,
+      residual_user_check_completed: false,
+      reconciliation_completed: false,
+      unresolved_material_conflicts: 0,
+      calculation_completed: false,
+      return_draft_prepared: false,
+      review_confirmed: false,
+      submission_confirmed: false,
+      submission_completed: false,
+      e_verification_completed: false
+    });
+    assert.equal(filingPlan.next_best_action.action_id, "extract_documents");
+    assert.equal(filingPlan.can_agent_continue_without_user, true);
 
     const usStockResult = await callStructured(client, "lazytax_compute_us_stock_investments", {
       data_mode: "local_private",
@@ -223,7 +251,7 @@ async function runHappyPath(pluginRoot, label) {
     assert.match(proof.integrity.canonical_payload_hash, /^[a-f0-9]{64}$/);
 
     process.stdout.write(
-      `LazyTax ${label} plugin smoke passed: 6 tools, US-stock FIFO/FX bridge, masked private settlement, conflict gate, deterministic comparison and proof pack.\n`
+      `LazyTax ${label} plugin smoke passed: 7 tools, CA-style next action, US-stock FIFO/FX bridge, masked private settlement, deterministic comparison and proof pack.\n`
     );
   } finally {
     await client.close();

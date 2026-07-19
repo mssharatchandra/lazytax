@@ -601,3 +601,73 @@ requirements, market proof and independent security/legal launch gate.
 each receives a separate scope lock and ruleset; build starts only after the
 personal-tax proof kernel meets its reliability and retention targets.
 **V:** approved discovery briefs and explicit go/no-go per vertical.
+
+---
+
+## CA-babysitter pivot — seamless secure filing
+
+### LZ-69 · Progressive filing-session orchestrator and CA conversation contract
+`pkg:core`+`pkg:engine`+`pkg:mcp`+`pkg:plugin` · deps: BW-6 · P0 · implemented MVP
+Maintain privacy-safe filing-session state and return one next-best action.
+Extract and consolidate before questioning; collect AIS/TIS, Form 26AS and
+prefill before residual-income checks; distinguish “blocks complete liability”
+from “blocks all progress”; group material questions; replace the seven-heading
+scope report with `What I completed`, `Filing checklist`, and `Next step`.
+**AC:** agent-owned safe work precedes user questions; maximum three questions;
+unknown categories do not erase supported work; submission/e-verification gates
+remain explicit; no PII or amounts enter session-planner inputs.
+**V:** planner phase/priority/approval golden tests + MCP/source/installed smoke +
+conversation eval replay of the failed multi-employer transcript.
+
+### LZ-70 · Device-bound encrypted local tax vault and secret-entry UI
+`pkg:vault`+`pkg:ingest`+`pkg:web` · deps: LZ-47..51 · P0/blocking for real beta
+Build local intake outside chat: per-file random DEKs, authenticated encryption,
+device-key wrapping through Keychain/Secure Enclave or DPAPI/TPM, encrypted fact
+store, memory-only PDF password entry, streaming decryption, parser sandbox,
+malware/type/size checks, guaranteed temporary-file cleanup and optional client-
+side-encrypted backup. The model receives only masked facts/source hashes.
+**AC:** raw files/passwords never appear in prompt/tool/log/analytics captures;
+device-loss and wrong-user access fail; key rotation/export/delete work; crash-
+recovery leaves no plaintext; prompt-injection fixtures cannot execute tools.
+**V:** DLP canaries + forensic temp-disk inspection + key rotation/delete/restore
+drills + independent security review.
+
+### LZ-71 · Sanitised user-supervised Income Tax portal concierge
+`pkg:browser-relay`+`pkg:agent`+`pkg:web` · deps: LZ-49, LZ-69, LZ-70 · P0 beta
+Use a dedicated local browser profile and official-domain allowlist. Taxpayer
+enters credentials/OTP at the real origin; the relay collects AIS/TIS, Form
+26AS and prefill, exposes redacted task state to the model, treats page content
+as untrusted, and requires contextual approval for download, submission,
+payment, profile changes, deletion and e-verification.
+**AC:** password/OTP never reaches model or logs; unrelated history/cookies are
+inaccessible; malicious page/document instructions cannot escape the allowlist;
+all consequential actions bind to a fresh review hash and approval receipt;
+kill switch stops the relay.
+**V:** local portal-mock E2E + credential canary + prompt-injection/domain-escape
+suite + moderated user test; live government use remains counsel/terms gated.
+
+### LZ-72 · Type-2 ERI registration, consent and official filing APIs
+`type:legal`+`pkg:filing`+`pkg:platform` · deps: LZ-59, LZ-65, LZ-67 · P0 production
+Register LazyTax as an eligible ERI and integrate the official Add Client,
+Prefill, Validate/Submit, e-Verify and Acknowledgement flows. Keep consent,
+activation, service validity, idempotency, review hashes, revocation, taxpayer-
+controlled verification and provider certification explicit.
+**AC:** approved ERI registration/client credentials; department conformance
+tests pass; no taxpayer password storage; every prefill/submit action has valid
+consent; duplicate/time-out/rejection paths are retry-safe; production kill
+switch defaults off until named legal/security/tax sign-off.
+**V:** official certification evidence + sandbox/conformance transcript + signed
+go/no-go and rollback drill.
+
+### LZ-73 · Real-taxpayer concierge beta and trust proof
+`type:product`+`type:security`+`type:ops` · deps: LZ-69..71 · P0
+Run a consented 15–20 taxpayer private beta using the encrypted vault and
+supervised portal rail. Measure questions to first estimate, automatic source-
+collection rate, reviewed-draft completion, abandonment, corrections, trust and
+security incidents; conduct structured exit interviews without session replay
+or tax-content analytics.
+**AC:** median ≤3 user questions before first full-year estimate; ≥80% sources
+collected without manual retyping; ≥80% reviewed-draft completion; zero secrets
+in telemetry; every error becomes a scrubbed regression fixture and owned ticket.
+**V:** beta report, privacy-safe funnel, interview synthesis, incident log and
+signed decision on ERI/public expansion.

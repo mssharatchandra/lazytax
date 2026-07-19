@@ -1,32 +1,40 @@
 # LazyTax for Codex
 
-> Give Codex your tax documents. Get back a return that proves every number.
+> Give LazyTax your documents. It does the filing legwork and asks only what it
+> cannot safely discover.
 
-LazyTax is an installable Codex/ChatGPT plugin for an evidence-backed Indian
-tax-verification workflow. It reconciles synthetic fixtures or explicitly
-authorized private tax facts, refuses to guess through conflicts, delegates
-supported calculations to a deterministic local engine, masks private
-identifiers in tool outputs, and produces a source-indexed Tax Proof Pack.
+LazyTax is an installable Codex/ChatGPT plugin that behaves like a proactive,
+CA-style Indian tax-filing companion. It consolidates synthetic fixtures or
+explicitly authorized real documents, deterministically plans the next filing
+action, collects likely missing authoritative sources before interrogating the
+taxpayer, reconciles evidence, delegates supported calculations to a local
+engine, masks private identifiers in tool outputs, and produces a source-
+indexed Tax Proof Pack.
 
 **OpenAI Build Week track:** Apps for Your Life  
-**Status:** Build Week MVP with synthetic judge mode and private review mode
+**Status:** CA-companion pivot shipped locally; synthetic judge mode and private
+preparation mode work. Secure portal concierge and official ERI submission are
+roadmap-gated.
 
-**Important:** LazyTax does not file a return and is not tax, legal or financial
-advice. Never provide tax-portal credentials or OTPs. Private files are handled
-only when the user explicitly asks Codex to review those exact files.
+**Important:** The current local build prepares and guides; it does not claim an
+automatic government submission. Never provide tax-portal credentials or OTPs
+in chat. Private files are handled only when the user explicitly asks Codex to
+work on those exact files.
 
 ## Why this exists
 
-Tax filing is often a provenance and reconciliation problem rather than a
-form-filling problem. Several plausible records can disagree, and a fast answer
-is not useful if the taxpayer cannot establish where every amount came from.
+Taxpayers do not want a verification report; they want someone competent to
+stay with them until filing is done. The hard part is assembling fragmented
+sources, discovering what is missing, reconciling disagreements and preserving
+proof—not merely filling fields.
 
 LazyTax treats GPT-5.6 as the interpretation and orchestration layer and local
 typed tools as the numeric authority:
 
 ```text
 Codex / ChatGPT Work mode (GPT-5.6)
-  -> LazyTax verification skill
+  -> LazyTax CA-companion skill
+  -> deterministic next-best-action planner
   -> local MCP tools over stdio
   -> deterministic AY 2026-27 engine
   -> source-indexed Tax Proof Pack
@@ -64,6 +72,8 @@ surfaced as review flags.
 
 - Installable Codex/ChatGPT plugin and `verify-tax-return` skill.
 - Local TypeScript MCP server using stdio and structured tool outputs.
+- Deterministic CA-style filing-session planner that prioritizes safe work and
+  authoritative source collection before residual user questions.
 - Separate synthetic and private normalization tools so real data cannot be
   accidentally relabelled as demo data.
 - Source normalization with stable evidence IDs and locators.
@@ -113,6 +123,7 @@ See [JUDGE_GUIDE.md](JUDGE_GUIDE.md) for the complete judge path and
 
 | Tool | Purpose |
 |---|---|
+| `lazytax_plan_filing_session` | Select one privacy-safe next filing action and keep partial progress moving |
 | `lazytax_normalize_fixture_data` | Load/validate the bundled demo or supplied synthetic fixture objects and preserve provenance |
 | `lazytax_normalize_private_tax_facts` | Pseudonymize tax facts from explicitly authorized private documents and return masked evidence |
 | `lazytax_compute_us_stock_investments` | Match supported US-stock lots and prepare source-linked CG/FSI/FA bridge facts |
@@ -120,7 +131,7 @@ See [JUDGE_GUIDE.md](JUDGE_GUIDE.md) for the complete judge path and
 | `lazytax_calculate_compare_regimes` | Deterministically calculate the supported old/new-regime estimates |
 | `lazytax_generate_tax_proof_pack` | Generate the structured evidence and calculation artifact |
 
-All six tools are read-only and non-destructive. Normalization, reconciliation
+All seven tools are read-only and non-destructive. Planning, normalization, reconciliation
 and calculation are idempotent; proof-pack generation is timestamped and
 therefore marked non-idempotent despite having no side effects. The local stdio
 server logs only failures to stderr.
@@ -208,10 +219,10 @@ product, not a promise of production readiness.
 ## Repository map
 
 ```text
-plugins/lazytax/      installable bundle, skill, launcher and MCP config
+plugins/lazytax/      installable CA-companion bundle, skill, launcher and MCP config
 packages/core/        strict schemas and shared contracts
 packages/engine/      deterministic normalization/reconciliation/tax/proof logic
-packages/mcp/         modern TypeScript MCP server and four focused tools
+packages/mcp/         modern TypeScript MCP server and seven focused tools
 scripts/              plugin bundler and real stdio smoke test
 fixtures/             three fictional source documents
 evals/                stable read-only evaluation questions

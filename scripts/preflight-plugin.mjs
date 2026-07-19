@@ -45,6 +45,29 @@ assert.match(manifest.version, /^\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?$/);
 assert.equal(manifest.skills, "./skills/");
 assert.equal(manifest.mcpServers, "./.mcp.json");
 assert.ok(manifest.interface?.defaultPrompt?.length > 0);
+assert.ok(
+  manifest.interface.defaultPrompt.length <= 3,
+  "Plugin starter prompts must fit the three-prompt Codex display limit"
+);
+
+const filingSkill = await readFile(
+  resolve(pluginRoot, "skills", "verify-tax-return", "SKILL.md"),
+  "utf8"
+);
+assert.match(filingSkill, /Progress before questions/);
+assert.match(filingSkill, /lazytax_plan_filing_session/);
+assert.match(filingSkill, /Collect before interrogating/);
+for (const retiredContract of [
+  "Use these headings for every substantive run",
+  "Approval required — one explicit decision at a time",
+  "State the selected mode and that LazyTax never files automatically"
+]) {
+  assert.equal(
+    filingSkill.includes(retiredContract),
+    false,
+    `Retired refusal-first behavior returned: ${retiredContract}`
+  );
+}
 
 const mcpConfig = await readJson(resolve(pluginRoot, ".mcp.json"));
 assert.deepEqual(mcpConfig.mcpServers?.lazytax, {

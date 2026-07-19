@@ -1,7 +1,7 @@
 {
   "name": "lazytax",
-  "version": "0.1.0+codex.20260719153919",
-  "description": "Private Indian tax verification with deterministic domestic and US-stock tools.",
+  "version": "0.1.0+codex.20260719172731",
+  "description": "A secure CA-style companion that takes Indian taxpayers from documents to a reviewed filing.",
   "author": {
     "name": "Sharat Chandra MS",
     "url": "https://github.com/mssharatchandra"
@@ -19,8 +19,8 @@
   "skills": "./skills/",
   "interface": {
     "displayName": "LazyTax",
-    "shortDescription": "Verify an Indian tax return with source-linked evidence.",
-    "longDescription": "LazyTax turns Codex into an evidence-first Indian tax verification workspace. It supports a synthetic judge sandbox and private-document mode, masks identifiers, reconciles source records, deterministically handles supported domestic income plus ordinary US common-stock FIFO gains and foreign disclosures, and generates a Tax Proof Pack without filing anything.",
+    "shortDescription": "Your secure CA-style companion for Indian tax filing.",
+    "longDescription": "LazyTax takes over the tax-filing legwork: it consolidates real private documents, finds duplicate and missing evidence, prioritizes AIS, Form 26AS and prefill collection before asking questions, reconciles source records, calculates supported domestic and US-stock tax deterministically, and stays with the taxpayer through review and a consent-controlled filing handoff.",
     "developerName": "Sharat Chandra MS",
     "category": "Productivity",
     "capabilities": [
@@ -29,11 +29,9 @@
     ],
     "websiteURL": "https://github.com/mssharatchandra/lazytax",
     "defaultPrompt": [
-      "Privately verify these tax documents, mask identifiers, and show every discrepancy.",
-      "Run the bundled synthetic judge workflow without guessing through conflicts.",
-      "Compare both tax regimes and cite the evidence for every number.",
-      "Reconcile my US-stock trades and prepare Schedule CG, FSI, TR and FA evidence.",
-      "Generate a Tax Proof Pack after I approve all resolutions."
+      "Take over my tax filing: organize these documents, find what's missing, and guide me to completion.",
+      "Collect my tax sources first, then ask only what you genuinely cannot discover.",
+      "Explain my return like a careful CA and keep working until only my approvals remain."
     ]
   },
   "mcpServers": "./.mcp.json"
