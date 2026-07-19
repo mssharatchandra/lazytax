@@ -1,0 +1,472 @@
+<meta charset="utf-8">
+<title>LazyTax — Product Prototype</title>
+<style>
+  :root{
+    --bg:#F2F5F0; --surface:#FFFFFF; --surface2:#E9EEE6; --ink:#17211A; --ink2:#5C685E;
+    --line:#D8DFD4; --green:#0B8F5B; --green-ink:#0B8F5B; --green-soft:#DCF2E6;
+    --amber:#B97A0F; --amber-soft:#F7EBD3; --chip:#EDF1EA; --hero:#0E3B27; --hero-ink:#E8F5EC;
+    --shadow:0 1px 2px rgba(23,33,26,.06),0 8px 24px rgba(23,33,26,.07);
+  }
+  @media (prefers-color-scheme: dark){
+    :root{
+      --bg:#0F1512; --surface:#171F1A; --surface2:#1E2822; --ink:#E6EEE7; --ink2:#93A296;
+      --line:#2A362E; --green:#3ED993; --green-ink:#3ED993; --green-soft:#173626;
+      --amber:#EBB458; --amber-soft:#33270F; --chip:#212B24; --hero:#0C2E1F; --hero-ink:#DFF3E6;
+      --shadow:0 1px 2px rgba(0,0,0,.4),0 10px 30px rgba(0,0,0,.35);
+    }
+  }
+  :root[data-theme="dark"]{
+    --bg:#0F1512; --surface:#171F1A; --surface2:#1E2822; --ink:#E6EEE7; --ink2:#93A296;
+    --line:#2A362E; --green:#3ED993; --green-ink:#3ED993; --green-soft:#173626;
+    --amber:#EBB458; --amber-soft:#33270F; --chip:#212B24; --hero:#0C2E1F; --hero-ink:#DFF3E6;
+    --shadow:0 1px 2px rgba(0,0,0,.4),0 10px 30px rgba(0,0,0,.35);
+  }
+  :root[data-theme="light"]{
+    --bg:#F2F5F0; --surface:#FFFFFF; --surface2:#E9EEE6; --ink:#17211A; --ink2:#5C685E;
+    --line:#D8DFD4; --green:#0B8F5B; --green-ink:#0B8F5B; --green-soft:#DCF2E6;
+    --amber:#B97A0F; --amber-soft:#F7EBD3; --chip:#EDF1EA; --hero:#0E3B27; --hero-ink:#E8F5EC;
+    --shadow:0 1px 2px rgba(23,33,26,.06),0 8px 24px rgba(23,33,26,.07);
+  }
+  *{box-sizing:border-box;margin:0}
+  html,body{height:100%}
+  body{
+    background:var(--bg); color:var(--ink);
+    font-family:-apple-system,"SF Pro Text",BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+    font-size:15px; line-height:1.45; -webkit-font-smoothing:antialiased;
+  }
+  .num{font-family:"Iowan Old Style","Palatino Linotype",Palatino,Georgia,serif;
+       font-variant-numeric:tabular-nums lining-nums; letter-spacing:-.01em}
+  .lbl{font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace;font-size:10.5px;
+       text-transform:uppercase;letter-spacing:.12em;color:var(--ink2)}
+
+  /* ---------- frame ---------- */
+  .app{max-width:1180px;margin:0 auto;padding:18px 20px 40px;display:flex;flex-direction:column;gap:14px;min-height:100vh}
+  header.bar{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+  .wordmark{display:flex;align-items:baseline;gap:8px;font-family:"Iowan Old Style","Palatino Linotype",Palatino,Georgia,serif;font-size:22px;font-weight:700}
+  .wordmark .sloth{font-size:19px}
+  .wordmark em{font-style:italic;color:var(--green-ink)}
+  .countdown{background:var(--amber-soft);color:var(--amber);border:1px solid transparent;
+    padding:5px 11px;border-radius:999px;font-size:12.5px;font-weight:600}
+  .spacer{flex:1}
+  .proto-note{font-size:12px;color:var(--ink2)}
+  .controls{display:flex;gap:8px}
+  button{font:inherit;cursor:pointer;border-radius:9px;border:1px solid var(--line);
+    background:var(--surface);color:var(--ink);padding:7px 14px;font-size:13.5px;font-weight:600}
+  button:focus-visible{outline:2px solid var(--green);outline-offset:2px}
+  button.primary{background:var(--green);border-color:var(--green);color:#fff}
+  :root[data-theme="dark"] button.primary, .darkauto button.primary{color:#07130C}
+  button:disabled{opacity:.45;cursor:default}
+
+  .stage{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);gap:16px;align-items:start}
+
+  /* ---------- chat ---------- */
+  .chat{background:var(--surface);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);
+    display:flex;flex-direction:column;height:640px;overflow:hidden}
+  .chat-head{display:flex;align-items:center;gap:10px;padding:12px 16px;border-bottom:1px solid var(--line)}
+  .avatar{width:30px;height:30px;border-radius:50%;background:var(--hero);color:var(--hero-ink);
+    display:grid;place-items:center;font-size:15px}
+  .chat-head .who{font-weight:700;font-size:14px}
+  .chat-head .status{font-size:12px;color:var(--ink2)}
+  .dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--green);margin-right:5px;vertical-align:1px}
+  .scroll{flex:1;overflow-y:auto;padding:18px 16px;display:flex;flex-direction:column;gap:12px}
+  .msg{max-width:86%;padding:10px 14px;border-radius:14px;font-size:14.5px;animation:pop .28s ease both}
+  @keyframes pop{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+  @media (prefers-reduced-motion:reduce){.msg{animation:none}}
+  .msg.agent{background:var(--surface2);border-bottom-left-radius:5px;align-self:flex-start}
+  .msg.user{background:var(--hero);color:var(--hero-ink);border-bottom-right-radius:5px;align-self:flex-end}
+  .msg b{font-weight:700}
+  .msg .src{display:inline-block;margin-left:4px;font-size:11px;color:var(--green-ink);
+    border-bottom:1px dotted var(--green-ink);cursor:help}
+  .msg.user .src{color:var(--hero-ink)}
+  .filebubble{align-self:flex-end;display:flex;gap:10px;align-items:center;background:var(--hero);color:var(--hero-ink);
+    padding:10px 14px;border-radius:14px;border-bottom-right-radius:5px;animation:pop .28s ease both;font-size:13.5px}
+  .filebubble .icon{width:34px;height:40px;border-radius:6px;background:var(--hero-ink);color:var(--hero);
+    display:grid;place-items:center;font-size:10px;font-weight:800;font-family:ui-monospace,monospace}
+  .toolchip{align-self:flex-start;display:flex;align-items:center;gap:8px;background:var(--chip);
+    border:1px dashed var(--line);border-radius:999px;padding:6px 13px;font-size:12.5px;color:var(--ink2);animation:pop .28s ease both}
+  .toolchip .spin{width:12px;height:12px;border:2px solid var(--line);border-top-color:var(--green);border-radius:50%;animation:rot 1s linear infinite}
+  @keyframes rot{to{transform:rotate(360deg)}}
+  .toolchip.done .spin{border:none;width:auto;height:auto;animation:none;color:var(--green-ink)}
+  .typing{align-self:flex-start;display:flex;gap:4px;padding:12px 16px;background:var(--surface2);border-radius:14px;border-bottom-left-radius:5px}
+  .typing i{width:6px;height:6px;border-radius:50%;background:var(--ink2);animation:blink 1s infinite}
+  .typing i:nth-child(2){animation-delay:.18s}.typing i:nth-child(3){animation-delay:.36s}
+  @keyframes blink{0%,80%,100%{opacity:.25}40%{opacity:1}}
+
+  .diffcard{align-self:stretch;background:var(--amber-soft);border:1px solid var(--amber);border-radius:14px;
+    padding:14px;animation:pop .3s ease both}
+  .diffcard .lbl{color:var(--amber)}
+  .diffrow{display:flex;justify-content:space-between;gap:10px;padding:7px 0;border-bottom:1px solid color-mix(in srgb,var(--amber) 25%,transparent);font-size:14px}
+  .diffrow:last-of-type{border-bottom:none}
+  .diffcard .actions{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}
+  .diffcard.resolved{opacity:.65}
+  .diffcard.resolved .actions{display:none}
+  .resolved-note{margin-top:8px;font-size:13px;color:var(--green-ink);font-weight:600;display:none}
+  .diffcard.resolved .resolved-note{display:block}
+
+  .composer{display:flex;gap:10px;padding:12px 14px;border-top:1px solid var(--line)}
+  .composer .input{flex:1;background:var(--surface2);border-radius:11px;padding:10px 14px;color:var(--ink2);font-size:14px}
+  .composer .send{background:var(--green);color:#fff;border:none;width:40px;border-radius:11px;font-size:16px}
+
+  /* ---------- dashboard ---------- */
+  .dash{display:flex;flex-direction:column;gap:12px;position:sticky;top:16px}
+  .dash-head{display:flex;align-items:center;gap:10px}
+  .dash-head h2{font-size:13px;font-weight:700;letter-spacing:.02em}
+  .statechip{font-size:11.5px;font-weight:700;padding:4px 10px;border-radius:999px;background:var(--chip);color:var(--ink2)}
+  .statechip.needs{background:var(--amber-soft);color:var(--amber)}
+  .statechip.ready{background:var(--green-soft);color:var(--green-ink)}
+  .cards{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:14px 16px;box-shadow:var(--shadow);
+    transition:box-shadow .3s ease, border-color .3s ease}
+  .card.flash{border-color:var(--green);box-shadow:0 0 0 3px color-mix(in srgb,var(--green) 22%,transparent)}
+  .card .lbl{display:block;margin-bottom:6px}
+  .card .val{font-size:26px;font-weight:700}
+  .card .sub{font-size:12px;color:var(--ink2);margin-top:4px;min-height:16px}
+  .card .sub .up{color:var(--green-ink);font-weight:600}
+  .card.empty .val{color:var(--line)}
+  .hero-card{grid-column:1 / -1;background:var(--hero);color:var(--hero-ink);border:none;position:relative;overflow:hidden}
+  .hero-card .lbl{color:color-mix(in srgb,var(--hero-ink) 60%,transparent)}
+  .hero-card .val{font-size:44px;line-height:1.05}
+  .hero-card .val .rup{font-size:26px;vertical-align:8px;margin-right:2px}
+  .hero-card .sub{color:color-mix(in srgb,var(--hero-ink) 70%,transparent)}
+  .hero-card .leaf{position:absolute;right:-18px;top:-24px;font-size:110px;opacity:.10;transform:rotate(12deg)}
+  .regime{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:12px 14px;box-shadow:var(--shadow);
+    display:none;animation:pop .3s ease both}
+  .regime.show{display:block}
+  .seg{display:flex;background:var(--surface2);border-radius:10px;padding:3px;margin-top:8px}
+  .seg button{flex:1;border:none;background:transparent;padding:8px 6px;border-radius:8px;font-size:13px}
+  .seg button.active{background:var(--surface);box-shadow:var(--shadow);color:var(--green-ink)}
+  .regime .delta{font-size:12.5px;color:var(--ink2);margin-top:8px}
+  .regime .delta b{color:var(--green-ink)}
+  .steps{display:flex;gap:6px}
+  .steps i{flex:1;height:4px;border-radius:2px;background:var(--line);transition:background .3s}
+  .steps i.on{background:var(--green)}
+
+  /* ---------- share modal ---------- */
+  .veil{position:fixed;inset:0;background:rgba(10,15,12,.55);display:none;place-items:center;padding:20px;z-index:50}
+  .veil.show{display:grid}
+  .flex-card{width:min(400px,100%);background:var(--hero);color:var(--hero-ink);border-radius:20px;padding:26px;
+    position:relative;overflow:hidden;box-shadow:0 30px 80px rgba(0,0,0,.45)}
+  .flex-card .lbl{color:color-mix(in srgb,var(--hero-ink) 55%,transparent)}
+  .flex-card .big{font-size:56px;font-weight:700;line-height:1.05;margin:6px 0 2px}
+  .flex-card .big .rup{font-size:30px;vertical-align:12px}
+  .flex-card .tag{font-style:italic;font-family:"Iowan Old Style",Palatino,Georgia,serif;font-size:16px;margin-top:10px}
+  .flex-card .meta{display:flex;gap:14px;margin-top:18px;font-size:12px;color:color-mix(in srgb,var(--hero-ink) 65%,transparent)}
+  .flex-card .sloth-big{position:absolute;right:-10px;bottom:-18px;font-size:120px;opacity:.14;transform:rotate(-8deg)}
+  .flex-card .wm{margin-top:20px;font-size:12.5px;letter-spacing:.08em;font-weight:700}
+  .veil .under{display:flex;gap:10px;margin-top:14px;justify-content:center}
+  .veil-wrap{display:flex;flex-direction:column;align-items:center}
+
+  footer{font-size:12px;color:var(--ink2);text-align:center;margin-top:6px}
+  footer b{color:var(--ink)}
+
+  @media (max-width:900px){
+    .stage{grid-template-columns:1fr}
+    .dash{position:static;order:-1}
+    .cards{grid-template-columns:1fr 1fr}
+    .chat{height:560px}
+    .hero-card .val{font-size:36px}
+  }
+</style>
+
+<div class="app">
+  <header class="bar">
+    <div class="wordmark"><span class="sloth">🦥</span> Lazy<em>Tax</em></div>
+    <span class="countdown">⏳ 12 days to Jul 31</span>
+    <div class="spacer"></div>
+    <span class="proto-note">Interactive prototype · scripted data, no real tax advice</span>
+    <div class="controls">
+      <button class="primary" id="playBtn">▶ Play the demo</button>
+      <button id="resetBtn">Restart</button>
+    </div>
+  </header>
+
+  <div class="stage">
+    <!-- ================= CHAT ================= -->
+    <section class="chat" aria-label="LazyTax chat">
+      <div class="chat-head">
+        <div class="avatar">🦥</div>
+        <div>
+          <div class="who">LazyTax</div>
+          <div class="status"><span class="dot"></span><span id="agentStatus">your extremely calm tax nerd</span></div>
+        </div>
+      </div>
+      <div class="scroll" id="scroll"></div>
+      <div class="composer">
+        <div class="input" id="composerHint">Attach a document or just say hi…</div>
+        <button class="send" aria-label="Send">↑</button>
+      </div>
+    </section>
+
+    <!-- ================= DASHBOARD ================= -->
+    <aside class="dash" aria-label="Live tax summary">
+      <div class="dash-head">
+        <h2>Your return, live</h2>
+        <span class="statechip" id="stateChip">Draft</span>
+        <div class="spacer"></div>
+        <span class="lbl">AY 2026-27 · ITR-2</span>
+      </div>
+      <div class="steps" aria-hidden="true">
+        <i id="s1"></i><i id="s2"></i><i id="s3"></i><i id="s4"></i><i id="s5"></i><i id="s6"></i>
+      </div>
+      <div class="cards">
+        <div class="card hero-card" id="cardRefund">
+          <span class="leaf">🦥</span>
+          <span class="lbl">Estimated refund</span>
+          <div class="val num"><span class="rup">₹</span><span id="vRefund">—</span></div>
+          <div class="sub" id="subRefund">Upload a document to wake me up</div>
+        </div>
+        <div class="card empty" id="cardIncome">
+          <span class="lbl">Salary income</span>
+          <div class="val num" id="vIncome">—</div>
+          <div class="sub" id="subIncome"></div>
+        </div>
+        <div class="card empty" id="cardCG">
+          <span class="lbl">Capital gains</span>
+          <div class="val num" id="vCG">—</div>
+          <div class="sub" id="subCG"></div>
+        </div>
+        <div class="card empty" id="cardOther">
+          <span class="lbl">Other income</span>
+          <div class="val num" id="vOther">—</div>
+          <div class="sub" id="subOther"></div>
+        </div>
+        <div class="card empty" id="cardTax">
+          <span class="lbl">Total tax</span>
+          <div class="val num" id="vTax">—</div>
+          <div class="sub" id="subTax"></div>
+        </div>
+      </div>
+      <div class="regime" id="regimeCard">
+        <span class="lbl">Regime pick</span>
+        <div class="seg" role="tablist">
+          <button class="active" id="segNew">New · ₹1,89,780</button>
+          <button id="segOld">Old · ₹3,07,070</button>
+        </div>
+        <div class="delta" id="regimeDelta"><b>New regime saves you ₹1,17,290.</b> Your 80C won't outrun the lower slabs this year — tap either side to see the line-by-line math.</div>
+      </div>
+    </aside>
+  </div>
+
+  <footer>Every number above carries a <b>source + explanation</b> in the real product (tap any card) · deterministic engine, the AI never does the math · <b>lazytax.in</b></footer>
+</div>
+
+<!-- ================= SHARE CARD ================= -->
+<div class="veil" id="veil" role="dialog" aria-modal="true" aria-label="Refund share card">
+  <div class="veil-wrap">
+    <div class="flex-card">
+      <span class="sloth-big">🦥</span>
+      <span class="lbl">My refund, filed the lazy way</span>
+      <div class="big num"><span class="rup">₹</span>31,620</div>
+      <div class="tag">"Filed my ITR by texting a sloth. 7 minutes. Zero forms."</div>
+      <div class="meta"><span>⏱ 7 min</span><span>📄 ITR-2</span><span>🧾 0 forms touched</span></div>
+      <div class="wm">LAZYTAX.IN</div>
+    </div>
+    <div class="under">
+      <button class="primary" id="shareBtn">Share to X</button>
+      <button id="blurBtn">Blur amount</button>
+      <button id="closeBtn">Close</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  var reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var scroll = document.getElementById('scroll');
+  var playBtn = document.getElementById('playBtn');
+  var resetBtn = document.getElementById('resetBtn');
+  var stateChip = document.getElementById('stateChip');
+  var composer = document.getElementById('composerHint');
+  var agentStatus = document.getElementById('agentStatus');
+  var veil = document.getElementById('veil');
+  var playing = false, stepIdx = 0, timers = [];
+
+  function inr(n){
+    n = Math.round(n);
+    var s = String(n), last3 = s.slice(-3), rest = s.slice(0,-3);
+    if(rest) last3 = ','+last3;
+    return rest.replace(/\B(?=(\d{2})+(?!\d))/g, ',') + last3;
+  }
+  function el(html){ var d=document.createElement('div'); d.innerHTML=html.trim(); return d.firstChild; }
+  function push(node){ scroll.appendChild(node); scroll.scrollTop = scroll.scrollHeight; return node; }
+  function wait(ms){ return new Promise(function(r){ var t=setTimeout(r, reduced?Math.min(ms,120):ms); timers.push(t); }); }
+
+  function agentMsg(html){ return push(el('<div class="msg agent">'+html+'</div>')); }
+  function userMsg(html){ return push(el('<div class="msg user">'+html+'</div>')); }
+  function fileBubble(name, kind){
+    return push(el('<div class="filebubble"><div class="icon">'+kind+'</div><div><b>'+name+'</b><br><span style="opacity:.7;font-size:12px">uploaded</span></div></div>'));
+  }
+  function toolChip(text){
+    return push(el('<div class="toolchip"><span class="spin"></span><span>'+text+'</span></div>'));
+  }
+  function finishChip(chip, text){
+    chip.classList.add('done');
+    chip.innerHTML = '<span class="spin">✓</span><span>'+text+'</span>';
+  }
+  async function typingThen(fn){
+    var t = push(el('<div class="typing"><i></i><i></i><i></i></div>'));
+    await wait(850); t.remove(); return fn();
+  }
+
+  function countTo(id, target, sub, subId, subHtml){
+    var elv = document.getElementById(id);
+    var card = elv.closest('.card'); card.classList.remove('empty');
+    card.classList.add('flash'); setTimeout(function(){card.classList.remove('flash');}, 900);
+    if(subId && subHtml !== undefined) document.getElementById(subId).innerHTML = subHtml;
+    if(reduced){ elv.textContent = inr(target); return; }
+    var start = null, from = 0, dur = 700;
+    // rAF throttles in background tabs — settle wins and stops the animation
+    var done = false;
+    var settle = setTimeout(function(){ done = true; elv.textContent = inr(target); }, dur + 150);
+    timers.push(settle);
+    var cur = parseInt(elv.textContent.replace(/[^0-9]/g,''),10); if(!isNaN(cur)) from = cur;
+    function tick(ts){
+      if(done) return;
+      if(!start) start = ts;
+      var p = Math.min(1,(ts-start)/dur); p = 1-Math.pow(1-p,3);
+      elv.textContent = inr(from + (target-from)*p);
+      if(p<1) requestAnimationFrame(tick); else done = true;
+    }
+    requestAnimationFrame(tick);
+  }
+  function setSteps(n){ for(var i=1;i<=6;i++) document.getElementById('s'+i).className = i<=n ? 'on':''; }
+  function setState(txt, cls){ stateChip.textContent = txt; stateChip.className = 'statechip'+(cls?' '+cls:''); }
+
+  /* ---------------- script ---------------- */
+  var steps = [
+    async function(){ // greet
+      setSteps(0);
+      await typingThen(function(){ agentMsg('Hey Arjun 👋 I\'m LazyTax. Drop your <b>Form 16</b>, <b>AIS</b>, and your broker\'s <b>Tax P&amp;L</b> on me — I\'ll read them, reconcile everything, and build your return while you watch. You never touch a form.'); });
+      await wait(500);
+      agentMsg('Quick housekeeping: your data stays encrypted, you can delete it anytime, and <b>every number I show you will cite its source</b>. Ready when you are.');
+      composer.textContent = 'Drag your Form 16 here…';
+    },
+    async function(){ // form 16
+      fileBubble('Form16_FY2025-26.pdf','PDF'); await wait(700);
+      var c = toolChip('Reading your Form 16…'); await wait(1300);
+      finishChip(c,'Form 16 parsed · 14 fields · 0.99 confidence');
+      countTo('vIncome', 1840000, true, 'subIncome', 'Gross salary · <span class="up">Form 16, Part B</span>');
+      await typingThen(function(){ agentMsg('Nice, clean Form 16 from <b>Acme Tech</b>. Gross salary <b>₹18,40,000</b><span class="src" title="Form 16 · Part B · line 1">source</span>, TDS already paid <b>₹2,21,400</b><span class="src" title="Form 16 · Part A">source</span>. Standard deduction of ₹75,000 applied (new regime). Got a broker statement? That\'s where refunds go to hide.'); });
+      setSteps(1); composer.textContent = 'Drag your Zerodha Tax P&L here…';
+    },
+    async function(){ // zerodha
+      fileBubble('zerodha_tax_pnl_FY26.xlsx','XLSX'); await wait(700);
+      var c = toolChip('Crunching 214 trades from Zerodha…'); await wait(1500);
+      finishChip(c,'Zerodha P&L parsed · FIFO matched · 0.98 confidence');
+      countTo('vCG', 235100, true, 'subCG', 'STCG ₹48,200 · LTCG ₹1,86,900 · <span class="up">Zerodha</span>');
+      countTo('vTax', 189780, true, 'subTax', 'New regime, incl. cess · <span class="up">engine v1 · AY 2026-27</span>');
+      countTo('vRefund', 31620, true, 'subRefund', 'TDS ₹2,21,400 − tax ₹1,89,780 · updates live');
+      await typingThen(function(){ agentMsg('Okay, investor arc 📈 — STCG <b>₹48,200</b> (taxed 20% u/s 111A) and LTCG <b>₹1,86,900</b>. Good news: the first <b>₹1.25L of LTCG is exempt</b>, so only ₹61,900 gets taxed at 12.5%. Fun fact most tools get wrong: capital gains <b>don\'t</b> get the §87A rebate — I checked, twice.'); });
+      setSteps(2); composer.textContent = 'Drag your AIS here…';
+    },
+    async function(){ // AIS + mismatch
+      fileBubble('AIS_FY2025-26.json','AIS'); await wait(700);
+      var c = toolChip('Cross-checking AIS against Zerodha + Form 16…'); await wait(1400);
+      finishChip(c,'Reconciled · 1 mismatch needs you');
+      setState('Needs you','needs'); setSteps(3);
+      countTo('vOther', 60520, true, 'subOther', 'Dividends + savings interest · <span class="up">AIS</span>');
+      await typingThen(function(){ agentMsg('Almost everything matches ✨ — one thing needs your eyes:'); });
+      await wait(300);
+      var card = push(el(
+        '<div class="diffcard" id="diff1">'+
+        '<span class="lbl">Mismatch · Dividend income</span>'+
+        '<div class="diffrow"><span>AIS says</span><b class="num">₹42,180</b></div>'+
+        '<div class="diffrow"><span>Zerodha says</span><b class="num">₹41,900</b></div>'+
+        '<div class="diffrow"><span>Difference</span><b class="num">₹280</b></div>'+
+        '<div style="font-size:13px;margin-top:8px">Likely a re-invested dividend Zerodha logs differently. I recommend the <b>AIS figure</b> — it\'s what the department already sees.</div>'+
+        '<div class="actions"><button class="primary" id="acceptDiff">Use AIS ₹42,180 ✓</button><button id="explainDiff">Explain more</button></div>'+
+        '<div class="resolved-note">Resolved — using AIS ₹42,180. Logged to your audit trail.</div>'+
+        '</div>'));
+      composer.textContent = 'Resolve the mismatch above ↑';
+      await new Promise(function(resolve){
+        card.querySelector('#acceptDiff').addEventListener('click', function(){
+          card.classList.add('resolved'); resolve();
+        });
+        card.querySelector('#explainDiff').addEventListener('click', function(){
+          agentMsg('When a dividend is auto-reinvested, brokers sometimes book it net of a rounding adjustment, while the company reports gross to the department. The ₹280 delta is exactly that. Using AIS avoids a mismatch notice — it\'s the number the taxman already has.');
+          scroll.scrollTop = scroll.scrollHeight;
+        });
+      });
+      setState('Draft');
+      await typingThen(function(){ agentMsg('Done ✅ — dividends set to <b>₹42,180</b><span class="src" title="AIS · SFT-15, confirmed by you">source</span>. Your call is saved to the audit trail.'); });
+    },
+    async function(){ // regime compare
+      var c = toolChip('Comparing new vs old regime…'); await wait(1200);
+      finishChip(c,'Regimes compared');
+      document.getElementById('regimeCard').classList.add('show');
+      countTo('vTax', 189780, true, 'subTax', 'New regime wins by ₹1,17,290');
+      setSteps(4);
+      await typingThen(function(){ agentMsg('Regime check: even with your 80C maxed, the <b>new regime saves you ₹1,17,290</b> this year — the lower slabs beat your deductions. I\'ve set it, but you can flip the toggle on the right to see the exact line-by-line difference.'); });
+      composer.textContent = 'Looks good — generate my return';
+    },
+    async function(){ // review + JSON
+      userMsg('Looks right. Generate it 🚀'); await wait(600);
+      await typingThen(function(){ agentMsg('One sacred rule first: <b>you confirm, I generate.</b> Review screen shows every head with its source — salary ✓, capital gains ✓, other income ✓, regime ✓. (In the real product this is a full-screen review; consider it confirmed for the demo.)'); });
+      await wait(700);
+      var c = toolChip('Generating ITR-2 JSON · validating against ITD schema…'); await wait(1600);
+      finishChip(c,'ITR-2 JSON valid ✓ · schema AY 2026-27 · 0 defects');
+      setState('Ready to file','ready'); setSteps(5);
+      agentMsg('🎉 <b>Your ITR-2 is ready and validates cleanly.</b> Next: a 2-minute guided handoff — I\'ll walk you through uploading this on incometax.gov.in and e-verifying with Aadhaar OTP, step by step, with pictures. You\'ve earned the lazy badge.');
+      await wait(800);
+      agentMsg('Total time: <b>7 minutes</b>. Estimated refund: <b>₹31,620</b>. Want the flex card? 😏');
+      composer.textContent = 'Show me the flex card';
+    },
+    async function(){ // share card
+      userMsg('Obviously.'); await wait(600); setSteps(6);
+      veil.classList.add('show');
+      agentStatus.textContent = 'accepting compliments';
+    }
+  ];
+
+  async function advance(){
+    if(stepIdx >= steps.length){ playing=false; playBtn.textContent='▶ Replay'; playBtn.disabled=false; return; }
+    var i = stepIdx++; await steps[i]();
+    if(playing){ await wait(900); advance(); }
+  }
+  playBtn.addEventListener('click', function(){
+    if(stepIdx===0 || stepIdx>=steps.length){ resetAll(); }
+    playing = true; playBtn.disabled = true; playBtn.textContent='Playing…';
+    advance();
+  });
+  resetBtn.addEventListener('click', resetAll);
+  function resetAll(){
+    timers.forEach(clearTimeout); timers=[]; playing=false; stepIdx=0;
+    scroll.innerHTML=''; veil.classList.remove('show');
+    playBtn.disabled=false; playBtn.textContent='▶ Play the demo';
+    setState('Draft'); setSteps(0);
+    agentStatus.textContent='your extremely calm tax nerd';
+    composer.textContent='Attach a document or just say hi…';
+    ['vIncome','vCG','vOther','vTax'].forEach(function(id){
+      var e=document.getElementById(id); e.textContent='—'; e.closest('.card').classList.add('empty');
+    });
+    document.getElementById('vRefund').textContent='—';
+    document.getElementById('subRefund').textContent='Upload a document to wake me up';
+    ['subIncome','subCG','subOther','subTax'].forEach(function(id){document.getElementById(id).innerHTML='';});
+    document.getElementById('regimeCard').classList.remove('show');
+  }
+
+  /* regime toggle */
+  var segNew=document.getElementById('segNew'), segOld=document.getElementById('segOld'), delta=document.getElementById('regimeDelta');
+  segNew.addEventListener('click', function(){
+    segNew.classList.add('active'); segOld.classList.remove('active');
+    countTo('vTax',189780,true,'subTax','New regime wins by ₹1,17,290');
+    delta.innerHTML='<b>New regime saves you ₹1,17,290.</b> Your 80C won\'t outrun the lower slabs this year — tap either side to see the line-by-line math.';
+  });
+  segOld.addEventListener('click', function(){
+    segOld.classList.add('active'); segNew.classList.remove('active');
+    countTo('vTax',307070,true,'subTax','Old regime · incl. 80C ₹1.5L, 80D ₹25k');
+    delta.innerHTML='Old regime costs <b>₹1,17,290 more</b> even after 80C ₹1,50,000 + 80D ₹25,000. The new slabs are simply lower for your income shape.';
+  });
+
+  /* share modal */
+  document.getElementById('closeBtn').addEventListener('click', function(){ veil.classList.remove('show'); });
+  var blurred=false;
+  document.getElementById('blurBtn').addEventListener('click', function(){
+    var big = veil.querySelector('.big'); blurred=!blurred;
+    big.style.filter = blurred?'blur(14px)':''; this.textContent = blurred?'Unblur amount':'Blur amount';
+  });
+  document.getElementById('shareBtn').addEventListener('click', function(){
+    this.textContent='Shared ✓ (demo)';
+  });
+})();
+</script>
