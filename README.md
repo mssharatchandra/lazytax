@@ -146,9 +146,10 @@ The public-safe Build Week provenance and recommended `/feedback` value are in
 | `lazytax_compute_us_stock_investments` | Match supported US-stock lots and prepare source-linked CG/FSI/FA bridge facts |
 | `lazytax_reconcile_evidence` | Compare source totals, surface conflicts and apply explicit confirmations |
 | `lazytax_calculate_compare_regimes` | Deterministically calculate the supported old/new-regime estimates |
+| `lazytax_prepare_filing_guide` | Choose ITR-1/ITR-2 and map reconciled Form 16, AIS and broker amounts to ordered portal schedules and fields |
 | `lazytax_generate_tax_proof_pack` | Generate the structured evidence and calculation artifact |
 
-All eight tools are read-only and non-destructive. Planning, normalization, reconciliation
+All nine tools are read-only and non-destructive. Planning, normalization, reconciliation
 and calculation are idempotent; proof-pack generation is timestamped and
 therefore marked non-idempotent despite having no side effects. The local stdio
 server logs only failures to stderr.
@@ -253,7 +254,7 @@ product, not a promise of production readiness.
 plugins/lazytax/      installable CA-companion bundle, skill, launcher and MCP config
 packages/core/        strict schemas and shared contracts
 packages/engine/      deterministic normalization/reconciliation/tax/proof logic
-packages/mcp/         modern TypeScript MCP server and eight focused tools
+packages/mcp/         modern TypeScript MCP server and nine focused tools
 scripts/              plugin bundler and real stdio smoke test
 sandbox/              allowlisted process-isolated synthetic Trust Lab runner
 fixtures/             three fictional source documents

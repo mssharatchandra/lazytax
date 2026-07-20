@@ -38,7 +38,7 @@ test("trust benchmark executes all high-signal controls", async () => {
   assert.ok(report.claims.every((claim) => claim.status === "pass"));
   assert.equal(report.claims.find((claim) => claim.id === "evidence_lineage")?.signal, "100% coverage");
   assert.equal(report.claims.find((claim) => claim.id === "pii_egress_control")?.signal, "0 of 3 canaries leaked");
-  assert.equal(report.claims.find((claim) => claim.id === "least_privilege_tools")?.signal, "8/8 tools constrained");
+  assert.equal(report.claims.find((claim) => claim.id === "least_privilege_tools")?.signal, "9/9 tools constrained");
   assertNoDirectPii(report);
 });
 

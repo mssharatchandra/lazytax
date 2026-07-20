@@ -22,7 +22,7 @@ npm run check
 npm run install:plugin
 ```
 
-`npm run check` includes an isolated-copy smoke test of the complete eight-tool
+`npm run check` includes an isolated-copy smoke test of the complete nine-tool
 workflow, so it verifies the same self-contained package shape Codex places in
 its install cache. `npm run install:plugin` registers this repository as the
 `personal` marketplace when needed and installs or refreshes
@@ -93,7 +93,7 @@ For the fastest proof of what LazyTax adds beyond a general model, open
 `http://127.0.0.1:4173/trust-lab.html` and click **Run isolated synthetic trust
 suite**. Expected result: **11/11 controls passed**. The machine-readable report
 shows four stable replay hashes, 100% evidence coverage, zero leaked fake-PII
-canaries, 8/8 typed read-only closed-world MCP tools, and explicit failures for
+canaries, 9/9 typed read-only closed-world MCP tools, and explicit failures for
 mixed taxpayers, duplicates, unsupported profiles, unresolved material
 conflicts, and self-approval.
 
@@ -111,7 +111,7 @@ npm run check:full
 
 ## MCP tool contract
 
-All eight tools are local, read-only, non-destructive, side-effect-free, and
+All nine tools are local, read-only, non-destructive, side-effect-free, and
 closed-world. Calculation results are stable for the same inputs; proof-pack
 `generated_at` and its dependent integrity hash vary by generation. The tools
 never access government portals or external services. The canonical three-
@@ -191,6 +191,16 @@ Conceptual input:
 
 The tool rejects unresolved evidence and unsupported profiles. Output contains `old_regime`, `new_regime`, `lower_estimated_regime`, `estimated_difference_inr`, assumptions, official-rule source URLs, and the non-advice boundary.
 
+### `lazytax_prepare_filing_guide`
+
+Purpose: select ITR-1 or ITR-2 for the supported AY 2026-27 case and turn the
+calculation-ready reconciliation into an ordered portal walkthrough. Every
+field instruction carries the schedule, portal label, exact rupee amount,
+evidence references, calculation node, entry mode and reason. Passing the
+unchanged US-stock result adds FIFO-backed Schedule CG and calendar-year
+Schedule FA values. Aggregate domestic broker gains stay marked for
+transaction/date-bucket review; the tool does not generate or submit ITR JSON.
+
 ### `lazytax_generate_tax_proof_pack`
 
 Purpose: bundle the exact evidence, confirmed reconciliation, supported profile, and deterministic comparison into one integrity-protected artifact.
@@ -212,7 +222,7 @@ Conceptual input:
 
 Output schema version is `0.1.0`. The integrity block uses SHA-256 over a canonicalized payload. `generated_at` and the hash are expected to vary; evaluation questions intentionally avoid comparing either value.
 
-Every tool also accepts optional `response_format: "summary" | "json"`; structured content is returned in either mode and is the value passed to the next tool.
+Normalization, reconciliation, calculation and proof-pack tools also accept optional `response_format: "summary" | "json"`; structured content is returned in either mode and is the value passed to the next tool.
 
 ## Fixture assumptions
 
@@ -228,7 +238,7 @@ Every tool also accepts optional `response_format: "summary" | "json"`; structur
 
 ## Run the stable MCP evaluations
 
-The ten questions in `evals/mcp-evaluation.xml` are independent, read-only, and use only the bundled closed fixture set. They avoid dynamic timestamps and proof hashes.
+The eleven questions in `evals/mcp-evaluation.xml` are independent, read-only, and use only the bundled closed fixture set. They avoid dynamic timestamps and proof hashes.
 
 At minimum, verify the repository test suite before judging:
 

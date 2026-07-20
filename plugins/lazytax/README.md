@@ -14,7 +14,13 @@ government submission.
 - Ordinary USD US common-stock investments accepted by the FIFO/FX evidence engine, excluding losses, employee equity, derivatives and corporate actions.
 - Two isolated modes: synthetic judge fixtures and explicitly authorized private taxpayer documents.
 - Private mode masks identifiers in deterministic outputs, retains no raw document text, and makes no network calls from the LazyTax MCP process.
-- Evidence inventory, reconciliation, deterministic regime comparison/calculation, and Tax Proof Pack.
+- Evidence inventory, reconciliation, deterministic regime comparison/calculation, evidence-linked ITR-1/ITR-2 field guidance, and Tax Proof Pack.
+
+The filing guide tells the user which supported return form and portal schedule
+to use, the reconciled rupee amount to enter or verify, the source references,
+and why the field matters. It preserves review boundaries for transaction-level
+broker schedules, residential status, foreign-tax relief, and unsupported law;
+it is not official ITR JSON and does not submit a return.
 
 The implementation is demonstration software, not tax or legal advice and not a production filing service.
 

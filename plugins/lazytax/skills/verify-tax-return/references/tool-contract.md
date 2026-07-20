@@ -61,6 +61,22 @@ Input: a calculation-ready reconciliation plus the supported taxpayer profile.
 
 Expected output: AY 2026-27 calculation trace, both supported regime results, TDS/conditional FTC settlement, supported US-stock STCG/LTCG treatment in private mode, input lineage, warnings, unsupported fields, and status. Repeat numbers exactly as returned.
 
+## `lazytax_prepare_filing_guide`
+
+Input: a supported taxpayer profile and calculation-ready reconciliation. Pass
+the unchanged `lazytax_compute_us_stock_investments` output when the case
+contains supported US shares. The selected regime may be supplied only after
+the user deliberately chooses it; otherwise the tool uses the lower mechanical
+estimate.
+
+Expected output: the supported ITR-1/ITR-2 selection, reason, ordered filing
+steps, and source-linked field instructions. Each instruction identifies the
+portal schedule/label, exact rupee amount, evidence references, calculation
+node, entry mode and plain-language reason. `review` means the aggregate is
+useful but transaction-level, residential-status, treaty or other professional
+validation remains before submission. The result is guided preparation, not
+official ITR JSON or government validation.
+
 ## `lazytax_generate_tax_proof_pack`
 
 Input: normalized evidence, reconciliation output, calculation output,
