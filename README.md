@@ -132,6 +132,8 @@ reported ₹40,000 bonus. Review the evidence IDs before confirming it.
 
 See [JUDGE_GUIDE.md](JUDGE_GUIDE.md) for the complete judge path and
 [DEMO_SCRIPT.md](DEMO_SCRIPT.md) for the <=2:55 submission narrative.
+The public-safe Build Week provenance and recommended `/feedback` value are in
+[docs/CODEX_SESSION_LEDGER.md](docs/CODEX_SESSION_LEDGER.md).
 
 ## MCP tools
 

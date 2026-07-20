@@ -63,3 +63,14 @@
 - The full release gate now includes four Playwright journeys across taxpayer,
   practitioner and Trust Lab surfaces. Build Week remains synthetic and
   read-only; production real-taxpayer and filing gates are unchanged.
+
+## 2026-07-21 · Codex · Build Week session provenance
+- The primary `/feedback` task is
+  `019f7a12-3155-7fc2-bcd9-7cc5f2078de6`; it contains the majority of LazyTax's
+  strategy, implementation, testing and release work.
+- Two private Form 16 validation tasks are recorded as supporting evidence in
+  `docs/CODEX_SESSION_LEDGER.md`.
+- Raw task transcripts are not public artifacts because they contain private
+  filenames, tax facts and a password-like identifier. The public ledger keeps
+  every input's product intent while withholding secrets, identifiers, local
+  paths, amounts and document contents.
