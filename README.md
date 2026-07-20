@@ -101,9 +101,24 @@ surfaced as review flags.
 It does **not** produce official ITR JSON, submit to the government portal,
 handle credentials/OTPs, or certify legal correctness.
 
-## Quick start
+## Setup and run locally
 
 Requirements: Node.js 20+ and a current Codex CLI/desktop installation.
+
+For a clean, lockfile-reproducible checkout:
+
+```sh
+npm ci
+npm run check
+npm run test:e2e:install
+npm run check:full
+npm run install:plugin
+```
+
+`npm run check:full` is the complete local gate: strict TypeScript builds,
+unit/integration/viewer tests, plugin validation, source and isolated-copy MCP
+smoke tests, and four Chromium journeys. The `npm install` sequence below is
+the equivalent incremental-development path.
 
 ```sh
 npm install
@@ -126,6 +141,23 @@ Start a new Codex task after installation, select GPT-5.6, and ask:
 > the evidence, show every discrepancy, and stop for my confirmation before
 > resolving anything.
 
+### Synthetic sample data
+
+The `build_week_demo` shortcut loads three fictional, PII-free FY2025-26 /
+AY2026-27 sources committed in the repository:
+
+```text
+fixtures/form16.synthetic.json
+fixtures/ais.synthetic.json
+fixtures/broker-pnl.synthetic.json
+```
+
+They deliberately contain one resolvable salary discrepancy. This lets judges
+see that LazyTax preserves conflicting evidence and waits for confirmation
+instead of guessing. After confirming the salary, ask LazyTax to calculate both
+regimes, call `lazytax_prepare_filing_guide`, and generate the Tax Proof Pack
+only after final approval.
+
 When asked to resolve the salary conflict, the intended synthetic-demo choice
 is ₹18,40,000, representing ₹18,00,000 regular salary plus the separately
 reported ₹40,000 bonus. Review the evidence IDs before confirming it.
@@ -134,6 +166,18 @@ See [JUDGE_GUIDE.md](JUDGE_GUIDE.md) for the complete judge path and
 [DEMO_SCRIPT.md](DEMO_SCRIPT.md) for the <=2:55 submission narrative.
 The public-safe Build Week provenance and recommended `/feedback` value are in
 [docs/CODEX_SESSION_LEDGER.md](docs/CODEX_SESSION_LEDGER.md).
+
+### Run the local interfaces
+
+```sh
+npm run viewer
+```
+
+Open `http://127.0.0.1:4173` for the taxpayer evidence flow,
+`http://127.0.0.1:4173/practitioner.html` for the synthetic practitioner
+cockpit, and `http://127.0.0.1:4173/trust-lab.html` for the executable Trust
+Lab. The default judge paths are synthetic; never enter portal credentials,
+OTPs or EVCs.
 
 ## MCP tools
 
@@ -193,7 +237,7 @@ annotations, and Tax Proof Pack integrity. The worker accepts only a fixed suite
 identifier, inherits no parent environment, and has time/output ceilings. This
 is process isolation, not an OS/container security boundary.
 
-## Codex and GPT-5.6 collaboration
+## How Codex and GPT-5.6 were used
 
 ### What existed before the Submission Period
 
@@ -210,19 +254,26 @@ is process isolation, not an OS/container security boundary.
 
 ### How Codex accelerated the build
 
-Codex decomposed the deadline-critical work into parallel plugin, engine/MCP and
-demo/evaluation workstreams; implemented typed contracts and tests; checked the
-narrow tax assumptions against official sources; integrated the workstreams;
-and ran the build, plugin validation, MCP smoke tests and repository safety
-checks. The primary build task's `/feedback` Session ID is supplied separately
-in the Devpost form.
+Codex turned the product thesis into an executable repository under the Build
+Week deadline. It decomposed work into plugin, deterministic engine/MCP,
+privacy/security, practitioner workflow and demo/evaluation streams;
+implemented strict contracts, calculation paths and regression tests; checked
+the narrow tax assumptions against official sources; kept the self-contained
+installed plugin synchronized; and repeatedly ran the build, isolated-copy
+smoke, Trust Lab and browser gates. This shortened the loop from product
+decision to typed implementation to adversarial verification while preserving
+human review at scope and release boundaries.
 
 ### Key human decisions
 
 Sharat Chandra MS chose the Indian tax-reconciliation problem, evidence-first
 product thesis, Apps for Your Life track, plugin-first distribution, supported
 demo persona and explicit decision to prohibit automated filing. The human also
-owns final scope, brand, demo narration and submission claims.
+owns final scope, brand, demo narration and submission claims. The decisions to
+make practitioners the trust/distribution wedge, preserve one canonical case,
+support ordinary US shares narrowly, and prioritize secure intake before a
+real-taxpayer beta are recorded in [DECISIONS.md](DECISIONS.md) and the
+canonical [AGENTS.md](AGENTS.md).
 
 ### GPT-5.6's product role
 
@@ -230,7 +281,28 @@ In the demonstrated workflow GPT-5.6 runs inside Codex/ChatGPT and follows the
 installed verification skill. It interprets the user's request, inventories
 the returned evidence, selects typed MCP tools, explains conflicts and requests
 confirmation. It is intentionally prevented from becoming the numeric source
-of truth; all displayed calculations come back from the deterministic engine.
+of truth; all displayed calculations, supported ITR-form choices and filing
+field amounts come back from the deterministic engine. Codex was the
+engineering environment; GPT-5.6 is also the runtime orchestration and
+explanation layer shown in the product demo.
+
+### `/feedback` submission provenance
+
+The Codex session containing the majority of the product strategy, core
+implementation, verification and release work is:
+
+```text
+019f7a12-3155-7fc2-bcd9-7cc5f2078de6
+```
+
+Use that value in the submission field requesting the **“/feedback Session ID
+where the majority of your project was worked on.”** Before submitting, return
+to that primary Codex task and run `/feedback` as a standalone command. The
+repository can record the task ID but cannot submit task feedback on the user's
+behalf. The sanitized provenance and supporting-session rationale are in
+[docs/CODEX_SESSION_LEDGER.md](docs/CODEX_SESSION_LEDGER.md); raw task exports
+are intentionally excluded because supporting sessions contain private tax
+document context.
 
 ## Tax-rule sources and limitations
 
