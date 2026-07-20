@@ -102,6 +102,9 @@ Devpost checklist.
 **AC:** all gates green or every exception disclosed in the submission.
 **Current V:** `npm run check:full` covers strict builds, 49 runtime/unit/viewer
 tests, 4 Chromium journeys, plugin preflight and source/isolated smoke paths.
+The primary `/feedback` task ID and sanitized supporting-session ledger are
+committed in `docs/CODEX_SESSION_LEDGER.md`; the final `/feedback` command,
+video URL and Devpost submission remain human-owned.
 
 ---
 
