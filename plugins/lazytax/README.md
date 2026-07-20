@@ -42,6 +42,23 @@ explicit development override.
 
 ## Install for judging
 
+### Fast path: committed bundle, no rebuild
+
+The repository already contains the self-contained MCP server and all three
+fictional fixtures. From the repository root:
+
+```sh
+codex plugin marketplace add .
+codex plugin add lazytax@personal
+```
+
+This path needs Node.js 20+ and a current Codex CLI/desktop installation, but no
+`npm install`, TypeScript build, API key, hosted service or test account. Start
+a new Codex task so the installed skill and nine MCP tools are loaded, select
+GPT-5.6, and invoke `$verify-tax-return` with `build_week_demo`.
+
+### Contributor path: rebuild and verify
+
 From the repository root:
 
 1. Install dependencies, run the full repository check, and use the safe local installer:
@@ -56,17 +73,21 @@ From the repository root:
    copy before installation. The installer registers this repository's
    marketplace only when necessary and refreshes the plugin.
 
-2. Alternatively, register and install manually:
-
-   ```sh
-   codex plugin marketplace add .
-   codex plugin add lazytax@personal
-   ```
-
-3. Start a new Codex task so the skill and MCP tools are loaded.
-4. Invoke `$verify-tax-return` with the included synthetic fixtures.
+2. Start a new Codex task so the skill and MCP tools are loaded.
+3. Invoke `$verify-tax-return` with the included synthetic fixtures.
 
 The canonical judge workflow uses only synthetic fixtures. Private mode accepts the exact real taxpayer documents the user asks Codex to review; never provide portal credentials or OTPs. Codex document handling remains governed by the user's Codex data controls.
+
+## Supported platforms
+
+- Windows 11 with PowerShell, Node.js 22 and Codex: verified.
+- macOS with Node.js 20+ and current Codex CLI/desktop: supported.
+- Linux with Node.js 20+ and current Codex CLI: supported.
+
+The plugin bundle is platform-neutral JavaScript and Codex launches it over
+local stdio. There is intentionally no hosted demo or filing test account; the
+synthetic bundle is the privacy-safe judge sandbox and makes no network calls
+from the LazyTax MCP process.
 
 ## Judge smoke test
 

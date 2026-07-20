@@ -105,6 +105,28 @@ handle credentials/OTPs, or certify legal correctness.
 
 Requirements: Node.js 20+ and a current Codex CLI/desktop installation.
 
+### Install the plugin
+
+The repository includes the ready-to-run, self-contained plugin bundle at
+`plugins/lazytax/`. From the repository root, install that committed bundle
+directly into Codex:
+
+```sh
+codex plugin marketplace add .
+codex plugin add lazytax@personal
+```
+
+This is the fastest judge path: it does **not** run `npm install`, compile
+TypeScript, rebuild the plugin, require API keys, or require a test account.
+Start a new Codex task after installation so the skill and all nine local MCP
+tools are loaded, select GPT-5.6, and use the synthetic prompt below. If a
+different marketplace named `personal` is already configured, inspect it with
+`codex plugin marketplace list` instead of replacing it; the automated
+installer intentionally refuses to overwrite another marketplace.
+
+For contributors who want to rebuild and verify the source first, use the
+lockfile-reproducible workflow below.
+
 For a clean, lockfile-reproducible checkout:
 
 ```sh
@@ -140,6 +162,36 @@ Start a new Codex task after installation, select GPT-5.6, and ask:
 > Use $verify-tax-return with the bundled `build_week_demo` fixtures. Inventory
 > the evidence, show every discrepancy, and stop for my confirmation before
 > resolving anything.
+
+### Supported platforms
+
+| Surface | Support |
+|---|---|
+| Windows | Verified on Windows 11 with PowerShell, Node.js 22 and Codex |
+| macOS | Supported with Node.js 20+ and a current Codex CLI/desktop installation |
+| Linux | Supported with Node.js 20+ and a current Codex CLI installation |
+| Browser viewer | Current Chromium; Playwright Chromium is the automated test target |
+
+The plugin is local and platform-neutral JavaScript: Codex launches its bundled
+Node.js 20-compatible MCP server over stdio. The submitted build has no hosted
+demo or public filing account because it intentionally keeps tax evidence local
+and has no production authentication or ERI connection.
+
+### Five-minute judge test — no rebuild or account
+
+1. Run the two `codex plugin` installation commands above.
+2. Open a new Codex task, select GPT-5.6, and paste the synthetic prompt above.
+3. Confirm that LazyTax lists the Form 16, AIS and broker evidence, then pauses
+   on the salary discrepancy instead of choosing a number itself.
+4. Confirm ₹18,40,000 only after reviewing the cited evidence IDs, then ask it
+   to compare regimes and prepare the filing guide.
+5. Verify that it recommends the supported ITR form, provides source-linked
+   field amounts and explanations, and does not claim to file the return.
+
+Everything in this path uses the fictional fixtures shipped inside the plugin.
+No real PAN, tax documents, portal credentials, OTP, EVC, network service,
+sandbox account or rebuild is needed. See [JUDGE_GUIDE.md](JUDGE_GUIDE.md) for
+the expected values and longer evaluation path.
 
 ### Synthetic sample data
 
