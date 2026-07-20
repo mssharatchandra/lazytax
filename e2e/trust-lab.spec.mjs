@@ -30,7 +30,7 @@ test("Trust Lab runs all controls and renders integrity evidence", async ({ page
   await expect(page.locator(".claim-card")).toHaveCount(11);
   await expect(page.getByText("100% coverage").first()).toBeVisible();
   await expect(page.getByText("0 of 3 canaries leaked").first()).toBeVisible();
-  await expect(page.getByText("8/8 tools constrained").first()).toBeVisible();
+  await expect(page.getByText("9/9 tools constrained").first()).toBeVisible();
   await expect(page.locator("#hash-list code")).toHaveCount(4);
   await expect(page.locator("body")).not.toContainText("ABCDE1234F");
   await expect(page.locator("body")).not.toContainText("canary@example.com");

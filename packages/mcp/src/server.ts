@@ -5,6 +5,7 @@ import { fileURLToPath } from "node:url";
 import { z } from "zod";
 import {
   DISCLAIMER,
+  FilingGuideSchema,
   FilingSessionInputSchema,
   FilingSessionPlanSchema,
   FixtureDocumentSchema,
@@ -29,6 +30,7 @@ import {
   normalizeFixtureData,
   planFilingSession,
   planPractitionerQueue,
+  prepareFilingGuide,
   reconcileEvidence,
   taxInputsFromReconciliation
 } from "@lazytax/engine";
@@ -387,6 +389,44 @@ export function createLazyTaxServer(): McpServer {
         return actionableError(
           error,
           "Resolve every evidence conflict, or use the documented supported profile without surcharge, marginal-relief, loss, or non-standard-deduction cases."
+        );
+      }
+    }
+  );
+
+  server.registerTool(
+    "lazytax_prepare_filing_guide",
+    {
+      title: "Prepare an Evidence-Linked ITR Filing Guide",
+      description:
+        "Choose ITR-1 or ITR-2 for the supported AY 2026-27 resident-individual case and produce ordered, source-linked portal field instructions from a calculation-ready reconciliation. It tells the user which schedule to open, the exact reconciled or computed rupee amount to enter or verify, why the field is required, and which evidence/calculation node supports it. An optional bound US-stock result adds FIFO-based Schedule CG and calendar-year Schedule FA values. It does not generate official ITR JSON, validate the government utility, submit, pay, or e-verify, and it preserves transaction-level, residential-status, treaty and unsupported-law review boundaries.",
+      inputSchema: z
+        .object({
+          profile: TaxpayerProfileSchema,
+          reconciliation: ReconciliationResultSchema,
+          selected_regime: z.enum(["old", "new"]).optional(),
+          us_stock_result: UsStockComputationResultSchema.optional()
+        })
+        .strict(),
+      outputSchema: FilingGuideSchema,
+      annotations: READ_ONLY_ANNOTATIONS
+    },
+    async ({ profile, reconciliation, selected_regime, us_stock_result }) => {
+      try {
+        const output = prepareFilingGuide({
+          profile,
+          reconciliation,
+          ...(selected_regime === undefined ? {} : { selectedRegime: selected_regime }),
+          ...(us_stock_result === undefined ? {} : { usStockResult: us_stock_result })
+        });
+        return workflowResult(
+          output,
+          `${output.itr_form} guide prepared with ${output.field_instructions.length} evidence-linked field instruction(s). ${output.form_reason} ${output.status === "review_required" ? `${output.open_review_items.length} review item(s) remain before submission.` : "The supported fields are ready for guided entry and official-utility verification."}`
+        );
+      } catch (error) {
+        return actionableError(
+          error,
+          "Resolve the evidence first, use the supported AY 2026-27 resident-individual profile, and pass the unchanged US-stock computation when foreign-share Schedule CG/FA guidance is needed."
         );
       }
     }

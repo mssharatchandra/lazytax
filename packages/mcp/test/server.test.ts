@@ -4,7 +4,7 @@ import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 import { createLazyTaxServer } from "../src/server.js";
 
-test("server exposes eight focused tools and completes the bundled proof-pack workflow", async () => {
+test("server exposes nine focused tools and completes the bundled proof-pack workflow", async () => {
   const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
   const server = createLazyTaxServer();
   const client = new Client({ name: "lazytax-test-client", version: "0.1.0" });
@@ -21,6 +21,7 @@ test("server exposes eight focused tools and completes the bundled proof-pack wo
         "lazytax_normalize_private_tax_facts",
         "lazytax_plan_filing_session",
         "lazytax_plan_practitioner_queue",
+        "lazytax_prepare_filing_guide",
         "lazytax_reconcile_evidence"
       ]
     );
@@ -184,6 +185,28 @@ test("server exposes eight focused tools and completes the bundled proof-pack wo
       (calculated.structuredContent as { estimated_difference_inr?: number })
         .estimated_difference_inr,
       206_284
+    );
+
+    const filingGuide = await client.callTool({
+      name: "lazytax_prepare_filing_guide",
+      arguments: {
+        profile,
+        reconciliation: resolved.structuredContent as Record<string, unknown>
+      }
+    });
+    assert.equal(filingGuide.isError, undefined);
+    assert.equal(
+      (filingGuide.structuredContent as { itr_form?: string }).itr_form,
+      "ITR-2"
+    );
+    assert.equal(
+      (
+        filingGuide.structuredContent as {
+          field_instructions?: Array<{ instruction_id?: string; amount_inr?: number }>;
+        }
+      ).field_instructions?.find((field) => field.instruction_id === "field_cg_domestic_111a_stcg")
+        ?.amount_inr,
+      45_000
     );
 
     const proof = await client.callTool({

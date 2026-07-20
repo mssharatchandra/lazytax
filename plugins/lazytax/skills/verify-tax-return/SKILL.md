@@ -222,6 +222,16 @@ TDS or other completed work.
 - Invoke `lazytax_calculate_compare_regimes` for supported calculations.
 - Report the engine's result exactly, together with sources, assumptions and
   open-item impact.
+- After reconciliation is calculation-ready, invoke
+  `lazytax_prepare_filing_guide`. State the recommended ITR form first, then
+  walk through its ordered steps. For every field, repeat the returned amount,
+  evidence references, entry mode (`enter`, `verify_prefilled`,
+  `portal_calculated`, or `review`) and reason exactly; never invent a portal
+  number or silently turn an aggregate broker gain into transaction-level data.
+- When the dedicated US-stock result exists, pass it unchanged so Schedule CG,
+  FSI and calendar-year Schedule FA instructions remain bound to the FIFO/FX
+  computation. Raw account identifiers are entered only by the taxpayer at the
+  official origin.
 - Prepare the return draft and proof-linked review before asking for filing
   approval.
 - Generate a Tax Proof Pack only after the taxpayer reviews the evidence and

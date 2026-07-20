@@ -94,8 +94,9 @@ Verified on 20 July 2026:
   submission remain human-owned.
 - Installable self-contained Codex/ChatGPT plugin and dual taxpayer/practitioner
   skill.
-- Eight read-only MCP tools, including taxpayer filing-session planning and the
-  role-aware `lazytax_plan_practitioner_queue`.
+- Nine read-only MCP tools, including taxpayer filing-session planning,
+  role-aware `lazytax_plan_practitioner_queue`, and evidence-linked
+  `lazytax_prepare_filing_guide` for supported ITR-1/ITR-2 cases.
 - Strict pseudonymous taxpayer/preparer/reviewer case contracts with
   deterministic assignment filtering, priority and next-best action.
 - Deterministic supported AY 2026-27 engine, domestic reconciliation and scoped
@@ -104,7 +105,7 @@ Verified on 20 July 2026:
   synthetic practitioner cockpit and evaluator suites.
 - Executable Trust Lab with 11/11 machine-verifiable controls, allowlisted
   child-process execution, stable replay hashes and an honest isolation limit.
-- Full standard and browser gates pass: core 2/2; engine 27/27; MCP 3/3; viewer
+- Full standard and browser gates pass: core 2/2; engine 31/31; MCP 3/3; viewer
   17/17; Playwright 4/4; plugin validation; source and isolated-copy smoke paths.
 
 This is **not production-ready for public real-taxpayer filing**. The current
@@ -198,4 +199,4 @@ npm run install:plugin
 ```
 
 After reinstalling the local plugin, test it in a new Codex task so the updated
-skill and eight-tool MCP contract are loaded.
+skill and nine-tool MCP contract are loaded.

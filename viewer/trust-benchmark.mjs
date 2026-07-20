@@ -269,7 +269,7 @@ export async function runTrustBenchmark() {
     )
   );
 
-  expect(tools.length === 8, "Unexpected MCP tool count.");
+  expect(tools.length === 9, "Unexpected MCP tool count.");
   expect(tools.every((tool) => tool.read_only && !tool.destructive && !tool.open_world && tool.typed_output), "MCP capability contract is too broad.");
   claims.push(
     passed(

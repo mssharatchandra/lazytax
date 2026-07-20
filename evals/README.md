@@ -1,6 +1,6 @@
 # MCP evaluation notes
 
-`mcp-evaluation.xml` contains exactly ten independent questions for the fixed `build_week_demo` fixture set.
+`mcp-evaluation.xml` contains exactly eleven independent questions for the fixed `build_week_demo` fixture set.
 
 Evaluation properties:
 

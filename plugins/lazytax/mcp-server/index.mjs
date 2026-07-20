@@ -21631,6 +21631,77 @@ var PractitionerQueuePlanSchema = external_exports.object({
   privacy_boundary: external_exports.literal("Only pseudonymous case and actor references plus operational counts are accepted or returned; no taxpayer names, PAN, Aadhaar, contact details, account identifiers, credentials, document contents, or free-text notes.")
 }).strict();
 
+// packages/core/dist/filing-guide.js
+var FilingSourceCategorySchema = external_exports.enum([
+  "salary",
+  "interest",
+  "dividend",
+  "foreign_dividend",
+  "listed_equity_stcg",
+  "listed_equity_ltcg",
+  "employer_tds",
+  "foreign_tax_withheld",
+  "foreign_capital_gains",
+  "other_foreign_income",
+  "foreign_stock_stcg",
+  "foreign_stock_ltcg"
+]);
+var FilingTaxRegimeSchema = external_exports.enum(["old", "new"]);
+var ItrFormSchema = external_exports.enum(["ITR-1", "ITR-2"]);
+var FilingGuideStatusSchema = external_exports.enum(["ready_for_guided_entry", "review_required"]);
+var FilingScheduleSchema = external_exports.enum([
+  "Part A - General",
+  "Schedule Salary",
+  "Schedule Other Sources",
+  "Schedule CG",
+  "Schedule 112A",
+  "Schedule FSI",
+  "Schedule TR",
+  "Schedule FA",
+  "Tax Paid",
+  "Part B-TTI"
+]);
+var FilingFieldInstructionSchema = external_exports.object({
+  instruction_id: external_exports.string().regex(/^field_[a-z0-9_]+$/),
+  schedule: FilingScheduleSchema,
+  portal_field_label: external_exports.string().min(1).max(240),
+  entry_mode: external_exports.enum(["enter", "verify_prefilled", "portal_calculated", "review"]),
+  amount_inr: external_exports.number().int().nullable(),
+  source_categories: external_exports.array(FilingSourceCategorySchema),
+  source_references: external_exports.array(external_exports.string().min(1)).min(1),
+  calculation_node: external_exports.string().regex(/^AY2026_27\.[A-Za-z0-9_.-]+$/),
+  why: external_exports.string().min(1).max(700),
+  review_note: external_exports.string().min(1).max(700).nullable()
+}).strict();
+var FilingStepSchema = external_exports.object({
+  step_number: external_exports.number().int().positive().max(20),
+  title: external_exports.string().min(1).max(180),
+  why: external_exports.string().min(1).max(700),
+  instruction_ids: external_exports.array(external_exports.string().regex(/^field_[a-z0-9_]+$/)),
+  requires_user_action: external_exports.boolean()
+}).strict();
+var FilingGuideSchema = external_exports.object({
+  schema_version: external_exports.literal("lazytax.filing-guide.v1"),
+  assessment_year: external_exports.literal("2026-27"),
+  itr_form: ItrFormSchema,
+  status: FilingGuideStatusSchema,
+  form_reason: external_exports.string().min(1).max(1e3),
+  selected_regime: FilingTaxRegimeSchema,
+  regime_reason: external_exports.string().min(1).max(700),
+  field_instructions: external_exports.array(FilingFieldInstructionSchema).min(1).max(100),
+  steps: external_exports.array(FilingStepSchema).min(1).max(20),
+  calculation_summary: external_exports.object({
+    total_tax_inr: external_exports.number().int().nonnegative(),
+    employer_tds_inr: external_exports.number().int().nonnegative(),
+    foreign_tax_credit_inr: external_exports.number().int().nonnegative(),
+    estimated_balance_payable_inr: external_exports.number().int().nonnegative(),
+    estimated_refund_inr: external_exports.number().int().nonnegative()
+  }).strict(),
+  open_review_items: external_exports.array(external_exports.string().min(1).max(700)).max(20),
+  official_source_urls: external_exports.array(external_exports.string().url()).min(1),
+  filing_boundary: external_exports.literal("Guided preparation only. Verify each entry in the official AY 2026-27 utility; this guide does not generate, validate, submit, pay, or e-verify a return.")
+}).strict();
+
 // packages/core/dist/index.js
 var ASSESSMENT_YEAR2 = "2026-27";
 var DISCLAIMER = "Synthetic Build Week demonstration only. LazyTax does not file a return and is not tax, legal, or financial advice. Verify all figures against official records and a qualified professional before acting.";
@@ -23222,6 +23293,401 @@ function generateTaxProofPack(args) {
     }
   });
 }
+var FILING_GUIDE_OFFICIAL_SOURCES = [
+  "https://www.incometax.gov.in/iec/foportal/help/individual/return-applicable-1",
+  "https://www.incometax.gov.in/iec/foportal/help/all-topics/e-filing-services/itr-2/itr-2-UM",
+  "https://www.incometax.gov.in/iec/foportal/sites/default/files/2026-05/CBDT__e-Filing_ITR%202_Validation%20Rules_AY%202026-27_V1.0.pdf",
+  ...FOREIGN_TAX_CREDIT_SOURCES,
+  ...US_STOCK_RULE_SOURCES
+];
+function filingReferences(result, category) {
+  const item = result.items.find((candidate) => candidate.category === category);
+  if (!item)
+    return [];
+  const references = item.selected_evidence_ids.length > 0 ? item.selected_evidence_ids : item.source_totals.flatMap((source) => source.evidence_ids);
+  return [...new Set(references)].sort();
+}
+function addFilingField(fields, value) {
+  fields.push(value);
+}
+function prepareFilingGuide(args) {
+  const profile = TaxpayerProfileSchema.parse(args.profile);
+  const reconciliation = ReconciliationResultSchema.parse(args.reconciliation);
+  if (!reconciliation.ready_for_calculation) {
+    throw new Error("Resolve every material evidence conflict before preparing filing-field guidance.");
+  }
+  const inputs = taxInputsFromReconciliation(reconciliation);
+  const comparison = compareTaxRegimes(profile, inputs, reconciliation.data_mode);
+  const selectedRegime = args.selectedRegime ?? comparison.lower_estimated_regime;
+  const calculation = selectedRegime === "old" ? comparison.old_regime : comparison.new_regime;
+  const usStockResult = args.usStockResult === void 0 ? void 0 : UsStockComputationResultSchema.parse(args.usStockResult);
+  if (usStockResult) {
+    if (usStockResult.assessment_year !== reconciliation.assessment_year) {
+      throw new Error("US-stock computation and reconciliation must use the same assessment year.");
+    }
+    if ((inputs.foreign_stock_stcg_inr ?? 0) !== Math.max(0, usStockResult.totals.net_short_term_inr) || (inputs.foreign_stock_ltcg_inr ?? 0) !== Math.max(0, usStockResult.totals.net_long_term_inr)) {
+      throw new Error("US-stock filing guidance is blocked because the supplied lot computation does not match the reconciled foreign-stock bridge amounts.");
+    }
+  }
+  const hasDomesticStcg = inputs.listed_equity_stcg_inr > 0;
+  const hasDomesticLtcgAboveItr1Limit = inputs.listed_equity_ltcg_inr > 125e3;
+  const hasForeignFacts = profile.has_foreign_income_or_assets || (inputs.foreign_dividend_inr ?? 0) > 0 || (inputs.foreign_stock_stcg_inr ?? 0) > 0 || (inputs.foreign_stock_ltcg_inr ?? 0) > 0 || (inputs.foreign_capital_gains_inr ?? 0) > 0 || (inputs.other_foreign_income_inr ?? 0) > 0;
+  const itrForm = hasDomesticStcg || hasDomesticLtcgAboveItr1Limit || hasForeignFacts ? "ITR-2" : "ITR-1";
+  const formReasons = [];
+  if (hasDomesticStcg)
+    formReasons.push("the case includes short-term capital gains");
+  if (hasDomesticLtcgAboveItr1Limit)
+    formReasons.push("section 112A long-term gains exceed \u20B91,25,000");
+  if (hasForeignFacts)
+    formReasons.push("the case includes foreign income or foreign assets");
+  if (formReasons.length === 0) {
+    formReasons.push("the supported resident-individual case stays within the ITR-1 income and eligibility boundary");
+  }
+  const fields = [];
+  addFilingField(fields, {
+    instruction_id: "field_part_a_itr_form",
+    schedule: "Part A - General",
+    portal_field_label: "Return form",
+    entry_mode: "verify_prefilled",
+    amount_inr: null,
+    source_categories: [],
+    source_references: ["rule:AY2026_27.ITR.applicability"],
+    calculation_node: "AY2026_27.ITR.form-selection",
+    why: `${itrForm} is selected because ${formReasons.join(" and ")}.`,
+    review_note: null
+  });
+  addFilingField(fields, {
+    instruction_id: "field_part_a_regime",
+    schedule: "Part A - General",
+    portal_field_label: "Tax regime under section 115BAC",
+    entry_mode: "verify_prefilled",
+    amount_inr: null,
+    source_categories: [],
+    source_references: ["calculation:regime-comparison"],
+    calculation_node: "AY2026_27.ITR.regime-selection",
+    why: `Use the ${selectedRegime} regime for this guide. The deterministic comparison estimated it from the reconciled case; confirm the choice in Part A before relying on the result.`,
+    review_note: selectedRegime === comparison.lower_estimated_regime ? null : `The selected ${selectedRegime} regime is not the lower estimate returned by the current comparison.`
+  });
+  const salaryRefs = filingReferences(reconciliation, "salary");
+  if (salaryRefs.length > 0) {
+    addFilingField(fields, {
+      instruction_id: "field_salary_gross",
+      schedule: "Schedule Salary",
+      portal_field_label: "Gross salary / salary as reconciled from Form 16 and AIS",
+      entry_mode: "verify_prefilled",
+      amount_inr: inputs.salary_inr,
+      source_categories: ["salary"],
+      source_references: salaryRefs,
+      calculation_node: "AY2026_27.Salary.gross",
+      why: "This is the reconciled gross salary amount. Check it against Form 16 and the portal prefill so bonuses or multiple source rows are not omitted or double counted.",
+      review_note: null
+    });
+    addFilingField(fields, {
+      instruction_id: "field_salary_standard_deduction",
+      schedule: "Schedule Salary",
+      portal_field_label: "Deduction under section 16(ia) - standard deduction",
+      entry_mode: "verify_prefilled",
+      amount_inr: calculation.standard_deduction_inr,
+      source_categories: ["salary"],
+      source_references: salaryRefs,
+      calculation_node: `AY2026_27.${selectedRegime}.standard-deduction`,
+      why: "The deterministic engine applies the AY 2026-27 standard deduction for the selected regime; verify that the utility applies the same deduction once across the full-year salary.",
+      review_note: null
+    });
+    addFilingField(fields, {
+      instruction_id: "field_salary_chargeable",
+      schedule: "Schedule Salary",
+      portal_field_label: "Income chargeable under the head Salaries",
+      entry_mode: "portal_calculated",
+      amount_inr: Math.max(0, inputs.salary_inr - calculation.standard_deduction_inr),
+      source_categories: ["salary"],
+      source_references: salaryRefs,
+      calculation_node: `AY2026_27.${selectedRegime}.salary-chargeable`,
+      why: "This is gross reconciled salary less the supported section 16 standard deduction. Let the portal calculate it and compare the displayed value.",
+      review_note: null
+    });
+  }
+  for (const item of [
+    { category: "interest", id: "interest", label: "Gross interest income", amount: inputs.interest_inr },
+    { category: "dividend", id: "dividend", label: "Gross domestic dividend income", amount: inputs.dividend_inr },
+    { category: "foreign_dividend", id: "foreign_dividend", label: "Gross foreign dividend income", amount: inputs.foreign_dividend_inr ?? 0 }
+  ]) {
+    const refs = filingReferences(reconciliation, item.category);
+    if (item.amount <= 0 || refs.length === 0)
+      continue;
+    addFilingField(fields, {
+      instruction_id: `field_other_sources_${item.id}`,
+      schedule: "Schedule Other Sources",
+      portal_field_label: item.label,
+      entry_mode: "enter",
+      amount_inr: item.amount,
+      source_categories: [item.category],
+      source_references: refs,
+      calculation_node: `AY2026_27.OtherSources.${item.id}`,
+      why: "Enter the reconciled gross amount rather than a bank receipt net of tax or a broker cash-flow subtotal.",
+      review_note: null
+    });
+  }
+  const domesticStockReview = "The current broker input is an aggregate gain. Validate the portal's transaction/date buckets and any required scrip-wise Schedule 112A details against the full broker tax P&L before submission.";
+  const domesticStcgRefs = filingReferences(reconciliation, "listed_equity_stcg");
+  if (inputs.listed_equity_stcg_inr > 0 && domesticStcgRefs.length > 0) {
+    addFilingField(fields, {
+      instruction_id: "field_cg_domestic_111a_stcg",
+      schedule: "Schedule CG",
+      portal_field_label: "Net short-term gain on STT-paid listed equity taxable under section 111A",
+      entry_mode: "review",
+      amount_inr: inputs.listed_equity_stcg_inr,
+      source_categories: ["listed_equity_stcg"],
+      source_references: domesticStcgRefs,
+      calculation_node: "AY2026_27.CapitalGains.section111A",
+      why: "This reconciled broker P&L gain feeds the section 111A capital-gains bucket and is not salary or other-source income.",
+      review_note: domesticStockReview
+    });
+  }
+  const domesticLtcgRefs = filingReferences(reconciliation, "listed_equity_ltcg");
+  if (inputs.listed_equity_ltcg_inr > 0 && domesticLtcgRefs.length > 0) {
+    addFilingField(fields, {
+      instruction_id: "field_112a_domestic_ltcg",
+      schedule: "Schedule 112A",
+      portal_field_label: "Net long-term gain on eligible STT-paid listed equity under section 112A",
+      entry_mode: "review",
+      amount_inr: inputs.listed_equity_ltcg_inr,
+      source_categories: ["listed_equity_ltcg"],
+      source_references: domesticLtcgRefs,
+      calculation_node: "AY2026_27.CapitalGains.section112A",
+      why: "This reconciled broker amount belongs in the section 112A schedule; the portal applies the statutory exemption/rate through its computation.",
+      review_note: domesticStockReview
+    });
+  }
+  if (usStockResult) {
+    const classifications = ["short_term_normal_rate", "long_term_section_112"];
+    for (const classification of classifications) {
+      const lots = usStockResult.matched_lots.filter((lot) => lot.classification === classification);
+      if (lots.length === 0)
+        continue;
+      const prefix = classification === "short_term_normal_rate" ? "us_stcg" : "us_ltcg";
+      const label = classification === "short_term_normal_rate" ? "foreign shares - short term" : "foreign shares - long term under section 112";
+      const refs = [...new Set(lots.flatMap((lot) => [lot.buy_source_ref, lot.sell_source_ref]))].sort();
+      const totals = {
+        sale: lots.reduce((sum, lot) => sum + lot.sale_value_inr, 0),
+        cost: lots.reduce((sum, lot) => sum + lot.acquisition_cost_inr, 0),
+        expenses: lots.reduce((sum, lot) => sum + lot.transfer_expenses_inr, 0),
+        gain: lots.reduce((sum, lot) => sum + lot.gain_loss_inr, 0)
+      };
+      for (const row of [
+        { suffix: "sale", portal: `Full value of consideration: ${label}`, amount: totals.sale },
+        { suffix: "cost", portal: `Cost of acquisition: ${label}`, amount: totals.cost },
+        { suffix: "expenses", portal: `Transfer expenses: ${label}`, amount: totals.expenses },
+        { suffix: "gain", portal: `Computed gain: ${label}`, amount: totals.gain }
+      ]) {
+        addFilingField(fields, {
+          instruction_id: `field_cg_${prefix}_${row.suffix}`,
+          schedule: "Schedule CG",
+          portal_field_label: row.portal,
+          entry_mode: row.suffix === "gain" ? "portal_calculated" : "enter",
+          amount_inr: row.amount,
+          source_categories: [classification === "short_term_normal_rate" ? "foreign_stock_stcg" : "foreign_stock_ltcg"],
+          source_references: refs,
+          calculation_node: `AY2026_27.CapitalGains.${prefix}.${row.suffix}`,
+          why: "This value comes from the source-linked FIFO lot computation using documented INR acquisition cost and the supported Rule 115 sale conversion.",
+          review_note: null
+        });
+      }
+    }
+    for (const [index, disclosure] of usStockResult.schedule_fa.foreign_equities.entries()) {
+      for (const row of [
+        { suffix: "initial", label: "Initial value", amount: disclosure.initial_value_inr },
+        { suffix: "peak", label: "Peak value", amount: disclosure.peak_value_inr },
+        { suffix: "closing", label: "Closing value", amount: disclosure.closing_value_inr },
+        { suffix: "credits", label: "Gross credits", amount: disclosure.gross_credits_inr },
+        { suffix: "sale", label: "Gross sale proceeds", amount: disclosure.gross_sale_proceeds_inr }
+      ]) {
+        addFilingField(fields, {
+          instruction_id: `field_fa_equity_${index + 1}_${row.suffix}`,
+          schedule: "Schedule FA",
+          portal_field_label: `Foreign equity ${index + 1} (${disclosure.ticker}) - ${row.label}`,
+          entry_mode: "enter",
+          amount_inr: row.amount,
+          source_categories: [],
+          source_references: [disclosure.source_ref],
+          calculation_node: `AY2026_27.ScheduleFA.equity-${index + 1}.${row.suffix}`,
+          why: `Report the calendar-year-ended 31 December 2025 Schedule FA value for ${disclosure.ticker}; Schedule FA uses a different reporting period from FY2025-26 income schedules.`,
+          review_note: "Raw institution/account identifiers stay outside this guide and must be entered directly in the official utility from the broker statement."
+        });
+      }
+    }
+  }
+  const foreignDividend = inputs.foreign_dividend_inr ?? 0;
+  const foreignStockIncome = (inputs.foreign_stock_stcg_inr ?? 0) + (inputs.foreign_stock_ltcg_inr ?? 0);
+  if (foreignDividend > 0) {
+    addFilingField(fields, {
+      instruction_id: "field_fsi_foreign_dividend",
+      schedule: "Schedule FSI",
+      portal_field_label: "Foreign-source dividend income (country code 002 - USA where applicable)",
+      entry_mode: "enter",
+      amount_inr: foreignDividend,
+      source_categories: ["foreign_dividend"],
+      source_references: filingReferences(reconciliation, "foreign_dividend"),
+      calculation_node: "AY2026_27.ScheduleFSI.dividend",
+      why: "Foreign dividend is reported in both the relevant income schedule and Schedule FSI so the foreign-source amount and any tax relief remain traceable.",
+      review_note: null
+    });
+  }
+  if (foreignStockIncome > 0) {
+    const refs = [
+      ...filingReferences(reconciliation, "foreign_stock_stcg"),
+      ...filingReferences(reconciliation, "foreign_stock_ltcg")
+    ];
+    addFilingField(fields, {
+      instruction_id: "field_fsi_foreign_capital_gains",
+      schedule: "Schedule FSI",
+      portal_field_label: "Foreign-source income under the head Capital Gains",
+      entry_mode: "enter",
+      amount_inr: foreignStockIncome,
+      source_categories: ["foreign_stock_stcg", "foreign_stock_ltcg"],
+      source_references: [...new Set(refs)].sort(),
+      calculation_node: "AY2026_27.ScheduleFSI.capital-gains",
+      why: "The supported US-share gains are also disclosed as foreign-source capital-gains income in Schedule FSI.",
+      review_note: "Treaty article selection remains a professional-review boundary in the current engine."
+    });
+  }
+  const foreignTaxRefs = filingReferences(reconciliation, "foreign_tax_withheld");
+  if ((inputs.foreign_tax_withheld_inr ?? 0) > 0 && foreignTaxRefs.length > 0) {
+    addFilingField(fields, {
+      instruction_id: "field_tr_foreign_tax_paid",
+      schedule: "Schedule TR",
+      portal_field_label: "Foreign tax paid",
+      entry_mode: "enter",
+      amount_inr: inputs.foreign_tax_withheld_inr ?? 0,
+      source_categories: ["foreign_tax_withheld"],
+      source_references: foreignTaxRefs,
+      calculation_node: "AY2026_27.ScheduleTR.foreign-tax-paid",
+      why: "Enter the evidenced foreign tax paid; do not substitute the Indian credit cap for the tax actually withheld abroad.",
+      review_note: null
+    });
+    addFilingField(fields, {
+      instruction_id: "field_tr_relief_claimed",
+      schedule: "Schedule TR",
+      portal_field_label: "Relief claimed under section 90/90A/91",
+      entry_mode: "review",
+      amount_inr: calculation.foreign_tax_credit_inr,
+      source_categories: ["foreign_tax_withheld", "foreign_dividend"],
+      source_references: foreignTaxRefs,
+      calculation_node: `AY2026_27.${selectedRegime}.foreign-tax-credit-cap`,
+      why: "This is the engine's conservative credit after applying the supported Indian-tax cap, not automatically the full foreign withholding.",
+      review_note: "Confirm residential status, treaty basis, Form 67 timing, and the final portal credit with a qualified reviewer."
+    });
+  }
+  const tdsRefs = filingReferences(reconciliation, "employer_tds");
+  if ((inputs.employer_tds_inr ?? 0) > 0 && tdsRefs.length > 0) {
+    addFilingField(fields, {
+      instruction_id: "field_tax_paid_salary_tds",
+      schedule: "Tax Paid",
+      portal_field_label: "TDS from salary",
+      entry_mode: "verify_prefilled",
+      amount_inr: inputs.employer_tds_inr ?? 0,
+      source_categories: ["employer_tds"],
+      source_references: tdsRefs,
+      calculation_node: "AY2026_27.TaxPaid.salary-tds",
+      why: "Match the employer TDS in Form 16 to Form 26AS and the prefilled Tax Paid schedule before taking credit.",
+      review_note: null
+    });
+  }
+  for (const row of [
+    { id: "total_tax", label: "Total tax liability after cess", amount: calculation.total_tax_inr },
+    { id: "balance", label: "Estimated balance payable", amount: calculation.estimated_balance_payable_inr },
+    { id: "refund", label: "Estimated refund", amount: calculation.estimated_refund_inr }
+  ]) {
+    addFilingField(fields, {
+      instruction_id: `field_tti_${row.id}`,
+      schedule: "Part B-TTI",
+      portal_field_label: row.label,
+      entry_mode: "portal_calculated",
+      amount_inr: row.amount,
+      source_categories: [],
+      source_references: ["calculation:regime-comparison"],
+      calculation_node: `AY2026_27.${selectedRegime}.${row.id}`,
+      why: "Do not manually force this result. Let the official utility calculate it, then compare it with the deterministic estimate and investigate any difference before submission.",
+      review_note: null
+    });
+  }
+  const openReviewItems = [];
+  if (inputs.listed_equity_stcg_inr > 0 || inputs.listed_equity_ltcg_inr > 0) {
+    openReviewItems.push(domesticStockReview);
+  }
+  if (calculation.ror_confirmation_required) {
+    openReviewItems.push("Confirm Resident and Ordinarily Resident status before relying on foreign-income, Schedule FSI/TR, or Schedule FA guidance.");
+  }
+  if (profile.has_unsupported_foreign_assets) {
+    openReviewItems.push("Unsupported foreign assets require practitioner review; supported salary and investment work remains available.");
+  }
+  if (((inputs.foreign_stock_stcg_inr ?? 0) > 0 || (inputs.foreign_stock_ltcg_inr ?? 0) > 0) && !usStockResult) {
+    openReviewItems.push("Attach the bound US-stock FIFO/Schedule FA computation before using foreign-share field instructions.");
+  }
+  if (usStockResult && !usStockResult.ready_for_supported_tax_calculation) {
+    openReviewItems.push("US-stock losses or unsupported lot conditions require set-off review before the return is finalized.");
+  }
+  if ((inputs.foreign_tax_withheld_inr ?? 0) > 0) {
+    openReviewItems.push("Foreign-tax-credit relief requires Form 67/treaty/residential-status review before submission.");
+  }
+  const scheduleOrder = [
+    "Part A - General",
+    "Schedule Salary",
+    "Schedule Other Sources",
+    "Schedule CG",
+    "Schedule 112A",
+    "Schedule FSI",
+    "Schedule TR",
+    "Schedule FA",
+    "Tax Paid",
+    "Part B-TTI"
+  ];
+  const stepWhy = {
+    "Part A - General": "The form, residential profile and tax regime determine which schedules and rules the utility enables.",
+    "Schedule Salary": "Form 16 and AIS salary must reconcile before the annual standard deduction is applied once.",
+    "Schedule Other Sources": "Interest and dividends are separate income heads and should be entered gross from reconciled evidence.",
+    "Schedule CG": "Broker gains belong in the correct asset, holding-period and rate buckets rather than in other income.",
+    "Schedule 112A": "Eligible STT-paid listed-equity long-term gains have a dedicated disclosure and tax treatment.",
+    "Schedule FSI": "A resident's foreign-source income must remain linked to the corresponding Indian income head.",
+    "Schedule TR": "Foreign tax paid and relief claimed are different values and must reconcile with Schedule FSI and Form 67.",
+    "Schedule FA": "ROR taxpayers disclose qualifying foreign assets on the required calendar-year basis, not only sold holdings.",
+    "Tax Paid": "TDS credit should agree across Form 16, Form 26AS and the portal prefill.",
+    "Part B-TTI": "The official utility's final liability or refund is the last numeric cross-check before approval."
+  };
+  const steps = scheduleOrder.flatMap((schedule) => {
+    const instructionIds = fields.filter((field) => field.schedule === schedule).map((field) => field.instruction_id);
+    if (instructionIds.length === 0)
+      return [];
+    return [{
+      step_number: 0,
+      title: schedule,
+      why: stepWhy[schedule],
+      instruction_ids: instructionIds,
+      requires_user_action: true
+    }];
+  }).map((step, index) => ({ ...step, step_number: index + 1 }));
+  return FilingGuideSchema.parse({
+    schema_version: "lazytax.filing-guide.v1",
+    assessment_year: ASSESSMENT_YEAR2,
+    itr_form: itrForm,
+    status: openReviewItems.length === 0 ? "ready_for_guided_entry" : "review_required",
+    form_reason: `${itrForm} is the applicable form for this supported case because ${formReasons.join(" and ")}.`,
+    selected_regime: selectedRegime,
+    regime_reason: selectedRegime === comparison.lower_estimated_regime ? `The ${selectedRegime} regime is the lower deterministic estimate by \u20B9${comparison.estimated_difference_inr.toLocaleString("en-IN")}.` : `The user selected the ${selectedRegime} regime even though the current comparison estimates the ${comparison.lower_estimated_regime} regime lower by \u20B9${comparison.estimated_difference_inr.toLocaleString("en-IN")}.`,
+    field_instructions: fields,
+    steps,
+    calculation_summary: {
+      total_tax_inr: calculation.total_tax_inr,
+      employer_tds_inr: calculation.employer_tds_inr,
+      foreign_tax_credit_inr: calculation.foreign_tax_credit_inr,
+      estimated_balance_payable_inr: calculation.estimated_balance_payable_inr,
+      estimated_refund_inr: calculation.estimated_refund_inr
+    },
+    open_review_items: openReviewItems,
+    official_source_urls: [...new Set(FILING_GUIDE_OFFICIAL_SOURCES)],
+    filing_boundary: "Guided preparation only. Verify each entry in the official AY 2026-27 utility; this guide does not generate, validate, submit, pay, or e-verify a return."
+  });
+}
 
 // packages/mcp/src/server.ts
 var SyntheticDocumentInputSchema = external_exports.union([
@@ -23513,6 +23979,40 @@ function createLazyTaxServer() {
         return actionableError(
           error2,
           "Resolve every evidence conflict, or use the documented supported profile without surcharge, marginal-relief, loss, or non-standard-deduction cases."
+        );
+      }
+    }
+  );
+  server.registerTool(
+    "lazytax_prepare_filing_guide",
+    {
+      title: "Prepare an Evidence-Linked ITR Filing Guide",
+      description: "Choose ITR-1 or ITR-2 for the supported AY 2026-27 resident-individual case and produce ordered, source-linked portal field instructions from a calculation-ready reconciliation. It tells the user which schedule to open, the exact reconciled or computed rupee amount to enter or verify, why the field is required, and which evidence/calculation node supports it. An optional bound US-stock result adds FIFO-based Schedule CG and calendar-year Schedule FA values. It does not generate official ITR JSON, validate the government utility, submit, pay, or e-verify, and it preserves transaction-level, residential-status, treaty and unsupported-law review boundaries.",
+      inputSchema: external_exports.object({
+        profile: TaxpayerProfileSchema,
+        reconciliation: ReconciliationResultSchema,
+        selected_regime: external_exports.enum(["old", "new"]).optional(),
+        us_stock_result: UsStockComputationResultSchema.optional()
+      }).strict(),
+      outputSchema: FilingGuideSchema,
+      annotations: READ_ONLY_ANNOTATIONS
+    },
+    async ({ profile, reconciliation, selected_regime, us_stock_result }) => {
+      try {
+        const output = prepareFilingGuide({
+          profile,
+          reconciliation,
+          ...selected_regime === void 0 ? {} : { selectedRegime: selected_regime },
+          ...us_stock_result === void 0 ? {} : { usStockResult: us_stock_result }
+        });
+        return workflowResult(
+          output,
+          `${output.itr_form} guide prepared with ${output.field_instructions.length} evidence-linked field instruction(s). ${output.form_reason} ${output.status === "review_required" ? `${output.open_review_items.length} review item(s) remain before submission.` : "The supported fields are ready for guided entry and official-utility verification."}`
+        );
+      } catch (error2) {
+        return actionableError(
+          error2,
+          "Resolve the evidence first, use the supported AY 2026-27 resident-individual profile, and pass the unchanged US-stock computation when foreign-share Schedule CG/FA guidance is needed."
         );
       }
     }

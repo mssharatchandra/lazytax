@@ -63,3 +63,8 @@
 - The full release gate now includes four Playwright journeys across taxpayer,
   practitioner and Trust Lab surfaces. Build Week remains synthetic and
   read-only; production real-taxpayer and filing gates are unchanged.
+
+## 2026-07-20 - Codex - Evidence-linked filing guidance slice
+- Added a ninth read-only MCP capability, `lazytax_prepare_filing_guide`, as a partial LZ-65 implementation. It deterministically chooses ITR-1 or ITR-2 for the currently supported AY 2026-27 profile and maps reconciled Form 16, AIS, domestic broker and supported US-stock facts to ordered schedule-level instructions.
+- Every suggested rupee value carries source references and a calculation node. Entry modes distinguish direct entry, prefill verification, portal-calculated cross-checks and review boundaries.
+- The guide deliberately does not claim official ITR JSON generation or filing. Aggregate domestic broker gains remain subject to transaction/date-bucket and Schedule 112A review; foreign guidance preserves ROR, treaty, Form 67 and raw-account-identifier boundaries.

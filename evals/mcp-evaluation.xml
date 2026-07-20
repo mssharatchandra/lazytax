@@ -37,6 +37,10 @@
     <answer>206284</answer>
   </qa_pair>
   <qa_pair>
+    <question>Normalize build_week_demo, confirm salary at INR 1,840,000, and call lazytax_prepare_filing_guide for the supported profile. Which ITR form does the guide select because the evidence includes section 111A short-term capital gains? Answer with the exact form label only.</question>
+    <answer>ITR-2</answer>
+  </qa_pair>
+  <qa_pair>
     <question>Complete the read-only build_week_demo flow through lazytax_generate_tax_proof_pack after confirming salary at INR 1,840,000 and explicitly setting the final proof-pack user confirmation to true. Which integrity algorithm does the generated proof pack declare? Answer with the exact algorithm label only.</question>
     <answer>SHA-256</answer>
   </qa_pair>

@@ -13,6 +13,7 @@ const expectedTools = [
   "lazytax_normalize_private_tax_facts",
   "lazytax_plan_filing_session",
   "lazytax_plan_practitioner_queue",
+  "lazytax_prepare_filing_guide",
   "lazytax_reconcile_evidence"
 ];
 
@@ -34,7 +35,8 @@ async function callStructured(client, name, arguments_) {
     arguments:
       name === "lazytax_compute_us_stock_investments" ||
       name === "lazytax_plan_filing_session" ||
-      name === "lazytax_plan_practitioner_queue"
+      name === "lazytax_plan_practitioner_queue" ||
+      name === "lazytax_prepare_filing_guide"
         ? arguments_
         : { ...arguments_, response_format: "json" }
   });
@@ -269,6 +271,18 @@ async function runHappyPath(pluginRoot, label) {
     assert.equal(calculation.lower_estimated_regime, "new");
     assert.equal(calculation.estimated_difference_inr, 206_284);
 
+    const filingGuide = await callStructured(client, "lazytax_prepare_filing_guide", {
+      profile: supportedProfile,
+      reconciliation
+    });
+    assert.equal(filingGuide.itr_form, "ITR-2");
+    assert.equal(
+      filingGuide.field_instructions.find(
+        (field) => field.instruction_id === "field_cg_domestic_111a_stcg"
+      ).amount_inr,
+      45_000
+    );
+
     const proof = await callStructured(client, "lazytax_generate_tax_proof_pack", {
       profile: supportedProfile,
       dataset,
@@ -282,7 +296,7 @@ async function runHappyPath(pluginRoot, label) {
     assert.match(proof.integrity.canonical_payload_hash, /^[a-f0-9]{64}$/);
 
     process.stdout.write(
-      `LazyTax ${label} plugin smoke passed: 8 tools, taxpayer and practitioner next actions, US-stock FIFO/FX bridge, masked private settlement, deterministic comparison and proof pack.\n`
+      `LazyTax ${label} plugin smoke passed: 9 tools, taxpayer and practitioner next actions, evidence-linked ITR guidance, US-stock FIFO/FX bridge, masked private settlement, deterministic comparison and proof pack.\n`
     );
   } finally {
     await client.close();
