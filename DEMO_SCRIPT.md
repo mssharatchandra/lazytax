@@ -12,7 +12,7 @@ Target recording length: **2:48**, leaving seven seconds of safety below the thr
 
 ## 0:16–0:34 — Invoke the real plugin
 
-**On screen:** Type the canonical prompt with `$verify-tax-return`. Briefly show the installed LazyTax plugin and four MCP tools.
+**On screen:** Type the canonical prompt with `$verify-tax-return`. Briefly show the installed LazyTax plugin and its typed read-only MCP tools.
 
 **Voiceover:**
 
@@ -50,21 +50,21 @@ Target recording length: **2:48**, leaving seven seconds of safety below the thr
 
 > After a second, explicit approval of the final summary, LazyTax creates the proof pack. Every material number links to evidence or a calculation step, alongside the user-confirmed resolution, assumptions, and a SHA-256 integrity hash.
 
-## 2:10–2:30 — Honest boundary and privacy
+## 2:10–2:34 — Trust Lab: why LazyTax, not Codex alone
 
-**On screen:** Show the synthetic badge and boundary card; briefly show the local stdio configuration.
+**On screen:** Open Trust Lab and click **Run isolated synthetic trust suite**. Show 11/11, stable hashes, zero PII canary leaks, and the sandbox limitation.
 
 **Voiceover:**
 
-> The MVP is deliberately local and synthetic-only. It has no filing tool, makes no portal call, and does not calculate a refund or balance due. Tax-credit lines remain in the input and are explicitly warned and excluded from this engine version.
+> Codex supplies the intelligence. LazyTax supplies the evidence, deterministic replay, privacy and review gates. These are executable claims: eleven controls pass, every material amount is linked, fake identifiers stay contained, and self-approval fails. This child-process harness is deliberately synthetic and does not claim production certification.
 
-## 2:30–2:48 — Why Codex and close
+## 2:34–2:48 — Codex and close
 
 **On screen:** Fast cuts of a dated Codex session, typed schemas/tests, then return to viewer hero.
 
 **Voiceover:**
 
-> Codex helped build the plugin, MCP contracts, deterministic engine, fixtures, golden tests, and evals. GPT‑5.6 is the reasoning interface; code supplies the proof. LazyTax shows that Codex can move beyond coding into high-stakes life workflows—without asking users to trust a black box.
+> Codex helped build the plugin, MCP contracts, deterministic engine, fixtures, unit tests, evals, and Playwright journeys. GPT‑5.6 is the reasoning interface; LazyTax makes its work reviewable and reproducible. That is how Codex moves into high-stakes life workflows without becoming a black box.
 
 ## 2:48–2:55 — End card buffer
 

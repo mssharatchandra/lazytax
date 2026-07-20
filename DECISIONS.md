@@ -51,3 +51,15 @@
 - The practitioner viewer is explicitly a synthetic demonstration. Durable
   tenancy/authentication, encrypted real-file storage, consent transport, CA
   verification, official ITR breadth and ERI filing remain production gates.
+
+## 2026-07-20 · Codex · Executable differentiation and judge signal
+- The claim “Codex supplies intelligence; LazyTax supplies evidence,
+  determinism, controls and authorized rails” is now executable rather than a
+  slide. The local Trust Lab runs the real MCP proof workflow twice and checks
+  11 evidence, determinism, privacy, scope and maker-checker controls.
+- No fake “Codex-only” benchmark is presented. The product measures its own
+  enforceable properties and states that process isolation is not an OS,
+  container, compliance or production-security certification.
+- The full release gate now includes four Playwright journeys across taxpayer,
+  practitioner and Trust Lab surfaces. Build Week remains synthetic and
+  read-only; production real-taxpayer and filing gates are unchanged.

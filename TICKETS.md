@@ -71,12 +71,14 @@ calculation trace, limitations and completion state from proof-pack data.
 **AC:** viewer is locally runnable and readable; every amount is traceable; it
 contains no filing-complete claim.
 
-### BW-9 · Golden tests and MCP evaluations
+### BW-9 · Golden tests, executable Trust Lab and MCP evaluations
 `pkg:engine` `pkg:evals` · owner: MCP + demo/evals agents · status: **Complete** · deps: BW-4..BW-7
-Add unit/golden coverage and ten independent, stable, read-only evaluation
-questions with single verifiable answers.
+Add unit/golden coverage, an 11-control synthetic Trust Lab, real Chromium
+journeys and ten independent, stable, read-only evaluation questions with
+single verifiable answers.
 **AC:** local test suite passes; malformed/unsupported/guardrail cases included;
-evaluation XML validates.
+evaluation XML validates; judge-visible taxpayer, practitioner and Trust Lab
+paths pass in Playwright.
 
 ### BW-10 · Judge installation and smoke-test path
 `pkg:root` · owner: primary agent · status: **Complete** · deps: BW-2, BW-6..BW-9
@@ -98,6 +100,8 @@ Run clean install/build/test/plugin validation, inspect repo for secrets/PII,
 verify README and sample data, capture `/feedback` session ID and complete the
 Devpost checklist.
 **AC:** all gates green or every exception disclosed in the submission.
+**Current V:** `npm run check:full` covers strict builds, 49 runtime/unit/viewer
+tests, 4 Chromium journeys, plugin preflight and source/isolated smoke paths.
 
 ---
 

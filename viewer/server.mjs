@@ -8,15 +8,18 @@ import {
   BUILD_WEEK_CONFIRMED_SALARY_INR,
   runSyntheticDemoWorkflow
 } from "../packages/mcp/dist/demo.js";
+import { runTrustSandbox } from "../sandbox/runner.mjs";
 
 const VIEWER_DIRECTORY = dirname(fileURLToPath(import.meta.url));
 const STATIC_FILES = new Map([
   ["/", ["index.html", "text/html; charset=utf-8"]],
   ["/index.html", ["index.html", "text/html; charset=utf-8"]],
   ["/practitioner.html", ["practitioner.html", "text/html; charset=utf-8"]],
+  ["/trust-lab.html", ["trust-lab.html", "text/html; charset=utf-8"]],
   ["/styles.css", ["styles.css", "text/css; charset=utf-8"]],
   ["/viewer.js", ["viewer.js", "text/javascript; charset=utf-8"]],
-  ["/practitioner.js", ["practitioner.js", "text/javascript; charset=utf-8"]]
+  ["/practitioner.js", ["practitioner.js", "text/javascript; charset=utf-8"]],
+  ["/trust-lab.js", ["trust-lab.js", "text/javascript; charset=utf-8"]]
 ]);
 
 const SECURITY_HEADERS = {
@@ -221,6 +224,28 @@ export function createViewerHttpServer() {
           approveFinalProofPack: true
         });
         sendJson(response, 200, buildPractitionerQueue(workflow));
+        return;
+      }
+
+      if (request.method === "POST" && requestUrl.pathname === "/api/trust-lab") {
+        if (!isAllowedBrowserOrigin(request)) {
+          sendJson(response, 403, { error: "Cross-origin trust-suite execution is not allowed." });
+          return;
+        }
+        const body = await readJsonBody(request);
+        if (
+          body === null ||
+          typeof body !== "object" ||
+          Array.isArray(body) ||
+          Object.keys(body).length !== 1 ||
+          body.suite !== "trust_lab_v1"
+        ) {
+          sendJson(response, 400, {
+            error: "The Trust Lab accepts only the allowlisted synthetic trust_lab_v1 suite."
+          });
+          return;
+        }
+        sendJson(response, 200, await runTrustSandbox(body));
         return;
       }
 

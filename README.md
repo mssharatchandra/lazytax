@@ -1,5 +1,7 @@
 # LazyTax for Codex
 
+[![Verify LazyTax](https://github.com/mssharatchandra/lazytax/actions/workflows/verify.yml/badge.svg)](https://github.com/mssharatchandra/lazytax/actions/workflows/verify.yml)
+
 > Give LazyTax your documents. It does the filing legwork and asks only what it
 > cannot safely discover.
 
@@ -92,6 +94,9 @@ surfaced as review flags.
   a structured Tax Proof Pack.
 - Three synthetic source documents, golden tests, MCP/practitioner evals, a
   taxpayer evidence viewer and a separate synthetic practitioner cockpit.
+- An executable Trust Lab that reruns the live MCP workflow twice and checks 11
+  governance claims inside a constrained child process, plus Chromium E2E tests
+  across all three judge-visible surfaces.
 
 It does **not** produce official ITR JSON, submit to the government portal,
 handle credentials/OTPs, or certify legal correctness.
@@ -103,6 +108,8 @@ Requirements: Node.js 20+ and a current Codex CLI/desktop installation.
 ```sh
 npm install
 npm run check
+npm run test:e2e:install
+npm run check:full
 npm run install:plugin
 ```
 
@@ -150,7 +157,9 @@ server logs only failures to stderr.
 npm install       # install workspace dependencies
 npm run build     # strict TypeScript build: core -> engine -> MCP
 npm test          # schema, golden-engine and MCP smoke tests
-npm run check     # build + all tests
+npm run check     # build + unit/integration tests + plugin smoke paths
+npm run test:e2e  # real Chromium journeys across taxpayer, CA, and Trust Lab surfaces
+npm run check:full # standard release gate plus Playwright
 npm run preflight:plugin # validate portable bundle and marketplace wiring
 npm run smoke:plugin # full source + isolated-copy MCP workflow
 npm run verify:plugin # rebuild and run both plugin-only checks
@@ -171,6 +180,15 @@ Proof Pack. It rejects cross-origin generation and accepts no uploaded data.
 Open `http://127.0.0.1:4173/practitioner.html` for the synthetic practitioner
 queue. That surface demonstrates risk ordering and maker-checker handoff; it is
 not authentication, tenancy or a production case store.
+
+Open `http://127.0.0.1:4173/trust-lab.html` and click **Run isolated synthetic
+trust suite** for the highest-signal judge view. It executes the real MCP chain
+twice and verifies conflict gating, stable replay hashes, 100% material evidence
+coverage, deduplication, mixed-taxpayer rejection, PII canary containment,
+unsupported-profile rejection, maker-checker separation, least-privilege tool
+annotations, and Tax Proof Pack integrity. The worker accepts only a fixed suite
+identifier, inherits no parent environment, and has time/output ceilings. This
+is process isolation, not an OS/container security boundary.
 
 ## Codex and GPT-5.6 collaboration
 
@@ -233,11 +251,13 @@ product, not a promise of production readiness.
 plugins/lazytax/      installable CA-companion bundle, skill, launcher and MCP config
 packages/core/        strict schemas and shared contracts
 packages/engine/      deterministic normalization/reconciliation/tax/proof logic
-packages/mcp/         modern TypeScript MCP server and seven focused tools
+packages/mcp/         modern TypeScript MCP server and eight focused tools
 scripts/              plugin bundler and real stdio smoke test
+sandbox/              allowlisted process-isolated synthetic Trust Lab runner
 fixtures/             three fictional source documents
 evals/                stable read-only evaluation questions
-viewer/               static evidence/proof viewer
+viewer/               taxpayer proof, practitioner queue, and executable Trust Lab
+e2e/                  Playwright journeys over all judge-visible surfaces
 docs/                 production analytics, distribution and coverage plans
 .telemetry/            product model, current-state audit and target event contract
 PLAN.md               Build Week scope lock plus archived standalone roadmap

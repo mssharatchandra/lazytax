@@ -22,7 +22,7 @@ npm run check
 npm run install:plugin
 ```
 
-`npm run check` includes an isolated-copy smoke test of the complete seven-tool
+`npm run check` includes an isolated-copy smoke test of the complete eight-tool
 workflow, so it verifies the same self-contained package shape Codex places in
 its install cache. `npm run install:plugin` registers this repository as the
 `personal` marketplace when needed and installs or refreshes
@@ -87,9 +87,31 @@ MCP tools, including the documented synthetic salary confirmation, and the page
 renders and exports the generated Tax Proof Pack. It accepts no uploads, rejects
 cross-origin generation, and makes no external network calls.
 
+### Executable Trust Lab
+
+For the fastest proof of what LazyTax adds beyond a general model, open
+`http://127.0.0.1:4173/trust-lab.html` and click **Run isolated synthetic trust
+suite**. Expected result: **11/11 controls passed**. The machine-readable report
+shows four stable replay hashes, 100% evidence coverage, zero leaked fake-PII
+canaries, 8/8 typed read-only closed-world MCP tools, and explicit failures for
+mixed taxpayers, duplicates, unsupported profiles, unresolved material
+conflicts, and self-approval.
+
+The Trust Lab spawns an allowlisted child process with no inherited parent
+environment, a 15-second limit, and a 1 MB output ceiling. The benchmark code
+performs no network calls. This is an honest process-level test harness, not an
+OS/container security boundary or a production security certification.
+
+To run the browser journeys locally:
+
+```sh
+npm run test:e2e:install
+npm run check:full
+```
+
 ## MCP tool contract
 
-All seven tools are local, read-only, non-destructive, side-effect-free, and
+All eight tools are local, read-only, non-destructive, side-effect-free, and
 closed-world. Calculation results are stable for the same inputs; proof-pack
 `generated_at` and its dependent integrity hash vary by generation. The tools
 never access government portals or external services. The canonical three-

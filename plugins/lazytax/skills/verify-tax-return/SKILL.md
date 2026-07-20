@@ -73,6 +73,24 @@ Never imply that LazyTax replaces a CA, provides professional certification or
 may act as the taxpayer's representative. Practitioner mode exists to increase
 review capacity and evidence quality while preserving human accountability.
 
+## Explain the LazyTax advantage honestly
+
+When asked why the plugin is needed if Codex can already reason about tax,
+answer with the implemented division of responsibility:
+
+- Codex interprets evidence, explains choices and coordinates the workflow.
+- LazyTax owns typed intake boundaries, source lineage, conflict-preserving
+  reconciliation, deterministic calculations, stable replay hashes,
+  maker-checker constraints and the Tax Proof Pack.
+- The moat is not a smarter chat response. It is a governed tax-case runtime
+  whose important claims can be replayed, tested and handed to a taxpayer or CA.
+
+Do not fabricate a “Codex-only benchmark” or imply that a general model is
+incapable. In a repository checkout, recommend the local executable Trust Lab
+at `/trust-lab.html` when the user or judge wants proof of these controls. State
+that it uses synthetic fixtures and process-level isolation, not production
+security certification.
+
 ## Shared case and handoff contract
 
 Maintain one canonical case reference and one evolving Tax Proof Pack across

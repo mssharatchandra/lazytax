@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light" />
+    <title>LazyTax — Executable Trust Lab</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <a class="brand" href="./" aria-label="LazyTax evidence viewer home">
+        <span class="brand-mark" aria-hidden="true">L</span>
+        <span>LazyTax</span>
+      </a>
+      <nav class="role-nav" aria-label="Viewer role">
+        <a href="./">Taxpayer proof</a>
+        <a href="./practitioner.html">Practitioner queue</a>
+        <a class="active" href="./trust-lab.html" aria-current="page">Trust Lab</a>
+      </nav>
+    </header>
+
+    <main>
+      <section class="trust-hero" aria-labelledby="trust-title">
+        <div>
+          <p class="eyebrow">Build Week verifier · synthetic only</p>
+          <h1 id="trust-title">Trust, demonstrated.</h1>
+          <p class="hero-copy">
+            Run the product's real MCP workflow and adversarial controls in a child process. The result is a machine-readable scorecard—not a prerecorded answer and not a claim that a model alone cannot be useful.
+          </p>
+          <button id="run-trust-lab" class="primary-button" type="button">Run isolated synthetic trust suite</button>
+        </div>
+        <article class="thesis-card">
+          <p class="eyebrow">The right-to-win thesis</p>
+          <blockquote>Codex supplies intelligence. LazyTax supplies evidence, determinism, controls, and authorized rails.</blockquote>
+          <div class="division-grid">
+            <div><span>Codex</span><strong>Interpret · explain · coordinate</strong></div>
+            <div><span>LazyTax</span><strong>Reconcile · calculate · prove · gate</strong></div>
+          </div>
+        </article>
+      </section>
+
+      <section aria-labelledby="score-title">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">Executable assurance</p>
+            <h2 id="score-title">Verification scorecard</h2>
+          </div>
+          <span id="trust-status" class="pill" aria-live="polite">Not run</span>
+        </div>
+        <div id="trust-metrics" class="trust-metrics">
+          <article class="metric"><span>Controls passed</span><strong>—</strong><small>Run the suite</small></article>
+          <article class="metric"><span>Evidence coverage</span><strong>—</strong><small>Material selected amounts</small></article>
+          <article class="metric"><span>PII canaries leaked</span><strong>—</strong><small>Fake PAN, name, and email</small></article>
+          <article class="metric"><span>MCP tool boundary</span><strong>—</strong><small>Typed and least privilege</small></article>
+        </div>
+        <div id="claim-grid" class="claim-grid" aria-live="polite">
+          <article class="empty-state">
+            <h3>Nothing is precomputed here</h3>
+            <p>The browser asks the local server to start an allowlisted child process. That worker executes the live MCP chain twice and runs negative security assertions.</p>
+          </article>
+        </div>
+      </section>
+
+      <section class="two-column trust-details" aria-labelledby="replay-title">
+        <article class="summary-card">
+          <p class="eyebrow">Deterministic replay</p>
+          <h2 id="replay-title">Stable integrity bindings</h2>
+          <dl id="hash-list" class="hash-list"><div><dt>Status</dt><dd>Pending</dd></div></dl>
+        </article>
+        <article class="summary-card">
+          <p class="eyebrow">Honest sandbox boundary</p>
+          <h2>What isolation means</h2>
+          <ul class="sandbox-list">
+            <li>Only one fixed synthetic suite identifier is accepted.</li>
+            <li>No parent secrets or environment variables are inherited.</li>
+            <li>Execution has a time limit and a 1 MB output ceiling.</li>
+            <li>The benchmark code performs no network calls.</li>
+            <li>This is process isolation, not an OS/container security boundary.</li>
+          </ul>
+          <p id="sandbox-duration" class="method-note">Run the suite to see measured execution time.</p>
+        </article>
+      </section>
+
+      <article class="boundary-card">
+        <h3>What this proves—and what it does not</h3>
+        <p>This suite proves the checked software properties for bundled synthetic fixtures. It does not prove universal tax-law correctness, production security, government authorization, compliance certification, or real filing capability.</p>
+      </article>
+    </main>
+
+    <footer>
+      <span>LazyTax executable Trust Lab</span>
+      <span>Read-only · synthetic · local child process</span>
+    </footer>
+
+    <script src="./trust-lab.js"></script>
+  </body>
+</html>

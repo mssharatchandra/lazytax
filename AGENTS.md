@@ -88,7 +88,7 @@ Web application ─────┘
 
 ## Current verified progress
 
-Verified on 19 July 2026:
+Verified on 20 July 2026:
 
 - Build Week: 10 of 12 execution tickets complete. Demo recording and final
   submission remain human-owned.
@@ -102,8 +102,10 @@ Verified on 19 July 2026:
   US-common-stock preparation.
 - Source-linked Tax Proof Pack, synthetic fixtures, taxpayer evidence viewer,
   synthetic practitioner cockpit and evaluator suites.
-- Full `npm run check` passes: runtime build; core 2/2; engine 27/27; MCP 3/3;
-  viewer 11/11; plugin validation; source and isolated-copy smoke paths.
+- Executable Trust Lab with 11/11 machine-verifiable controls, allowlisted
+  child-process execution, stable replay hashes and an honest isolation limit.
+- Full standard and browser gates pass: core 2/2; engine 27/27; MCP 3/3; viewer
+  17/17; Playwright 4/4; plugin validation; source and isolated-copy smoke paths.
 
 This is **not production-ready for public real-taxpayer filing**. The current
 practitioner viewer is synthetic and the local role gate is demonstrative, not
@@ -190,6 +192,7 @@ server-side kill switch and official provider/ERI certification.
 
 ```sh
 npm run check
+npm run check:full
 npm run verify:plugin
 npm run install:plugin
 ```

@@ -12,7 +12,10 @@
     "build:plugin": "node scripts/build-plugin.mjs",
     "test": "npm run test -w @lazytax/core && npm run test -w @lazytax/engine && npm run test -w @lazytax/mcp && npm run test:viewer",
     "test:viewer": "npm run build:runtime && node --test viewer/test/*.test.mjs",
+    "test:e2e": "playwright test",
+    "test:e2e:install": "playwright install chromium",
     "check": "npm run build && npm test && npm run preflight:plugin && npm run smoke:plugin",
+    "check:full": "npm run check && npm run test:e2e",
     "mcp": "npm run start -w @lazytax/mcp",
     "viewer": "npm run build:runtime && node viewer/server.mjs",
     "preflight:plugin": "node scripts/preflight-plugin.mjs",
@@ -24,6 +27,7 @@
     "node": ">=20"
   },
   "devDependencies": {
+    "@playwright/test": "^1.61.1",
     "@types/node": "^22.15.0",
     "esbuild": "^0.25.0",
     "tsx": "^4.20.0",

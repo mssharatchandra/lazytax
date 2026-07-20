@@ -1,6 +1,6 @@
 {
   "name": "lazytax",
-  "version": "0.1.0+codex.20260719182323",
+  "version": "0.1.0+codex.20260720164620",
   "description": "A secure AI tax caseworker for Indian taxpayers, CAs, and tax professionals.",
   "author": {
     "name": "Sharat Chandra MS",
@@ -33,7 +33,7 @@
     "defaultPrompt": [
       "Take over my tax filing: organize these documents, find what's missing, and guide me to completion.",
       "Act as my AI tax junior: prioritize my assigned cases and show what needs preparer or reviewer action.",
-      "Prepare this shared tax case for independent review with source-linked conflicts and a Tax Proof Pack."
+      "Explain and demonstrate what LazyTax enforces beyond Codex reasoning: evidence lineage, deterministic replay, privacy boundaries, and maker-checker controls."
     ]
   },
   "mcpServers": "./.mcp.json"

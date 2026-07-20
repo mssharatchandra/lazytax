@@ -7,4 +7,6 @@ coverage/
 .env.*
 !.env.example
 .codex/
-
+test-results/
+playwright-report/
+blob-report/
